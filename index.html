@@ -2,29 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>ANICADE MANGA</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Serif+JP:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <style>
-    /* ─── RESET & BASE ─────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --ink:        #0a0806;
-      --paper:      #f0e8d8;
-      --aged:       #d4c4a0;
-      --rust:       #c0392b;
-      --rust-light: #e74c3c;
-      --gold:       #d4a017;
-      --gold-light: #f0c040;
-      --cream:      #faf4e8;
-      --muted:      #7a6a50;
-      --panel:      #1a1410;
-      --panel2:     #241e18;
-      --border:     #3a2e22;
-      --glow:       rgba(212,160,23,.35);
-      --r: #c0392b;
+      --ink:     #06080f;
+      --panel:   #0d1120;
+      --panel2:  #111827;
+      --border:  #1e2d4a;
+      --paper:   #e8eef8;
+      --aged:    #a8b8d0;
+      --muted:   #546480;
+      --neon:    #00d4ff;
+      --neon2:   #0099cc;
+      --neon-glow: rgba(0,212,255,.25);
+      --rust:    #00d4ff;
+      --rust-light: #33ddff;
+      --gold:    #00d4ff;
     }
 
     html { scroll-behavior: smooth; }
@@ -35,1169 +33,343 @@
       font-family: 'Rajdhani', sans-serif;
       font-size: 16px;
       overflow-x: hidden;
-      cursor: default;
+      touch-action: pan-y;
     }
 
-    /* ─── HALFTONE OVERLAY ────────────────────────────── */
+    /* halftone */
     body::before {
       content: '';
-      position: fixed;
-      inset: 0;
-      background-image: radial-gradient(circle, rgba(255,255,255,.03) 1px, transparent 1px);
+      position: fixed; inset: 0;
+      background-image: radial-gradient(circle, rgba(0,212,255,.015) 1px, transparent 1px);
       background-size: 6px 6px;
-      pointer-events: none;
-      z-index: 0;
+      pointer-events: none; z-index: 0;
     }
 
-    /* ─── SCROLLBAR ───────────────────────────────────── */
-    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: var(--ink); }
-    ::-webkit-scrollbar-thumb { background: var(--rust); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
 
-    /* ─── NOISE TEXTURE ───────────────────────────────── */
-    .noise::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    /* ─── NAVBAR ──────────────────────────────────────── */
+    /* ── NAVBAR ── */
     .navbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      gap: 0;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
       height: 64px;
-      background: rgba(10,8,6,.92);
-      border-bottom: 2px solid var(--rust);
-      backdrop-filter: blur(12px);
-      padding: 0 32px;
+      display: flex; align-items: center;
+      background: rgba(6,8,15,.93);
+      border-bottom: 2px solid var(--neon);
+      backdrop-filter: blur(14px);
+      padding: 0 28px;
+      box-shadow: 0 0 30px rgba(0,212,255,.15);
     }
+    .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; flex-shrink:0; }
+    .brand-logo { height:44px; width:auto; display:block; object-fit:contain; border-radius:4px; }
+    .brand-name { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; color:var(--paper); line-height:1; }
+    .brand-name .bh { color:var(--neon); text-shadow:0 0 12px var(--neon); }
 
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-      flex-shrink: 0;
-    }
-
-    .brand-logo {
-      height: 44px;
-      width: auto;
-      display: block;
-      object-fit: contain;
-    }
-
-    .brand-name {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 22px;
-      letter-spacing: 3px;
-      color: var(--paper);
-      line-height: 1;
-    }
-    .brand-name .bh { color: var(--gold); }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-left: auto;
-    }
-
+    .nav-links { display:flex; align-items:center; gap:2px; margin-left:auto; }
     .nav-links a {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 16px;
-      color: var(--aged);
-      text-decoration: none;
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      border: 1px solid transparent;
-      transition: all .2s;
-      position: relative;
+      display:flex; align-items:center; gap:6px;
+      padding:8px 14px; color:var(--aged);
+      text-decoration:none; font-family:'Rajdhani',sans-serif;
+      font-weight:600; font-size:13px; letter-spacing:1.5px; text-transform:uppercase;
+      border:1px solid transparent; transition:all .2s;
     }
-
-    .nav-links a:hover,
-    .nav-links a.active {
-      color: var(--gold);
-      border-color: var(--border);
-      background: rgba(212,160,23,.08);
+    .nav-links a:hover, .nav-links a.active {
+      color:var(--neon); border-color:var(--border);
+      background:rgba(0,212,255,.07);
+      text-shadow:0 0 8px rgba(0,212,255,.5);
     }
-
     .nav-links a.contact-btn {
-      background: var(--rust);
-      color: #fff;
-      border-color: var(--rust);
-      clip-path: polygon(0 0, 94% 0, 100% 20%, 100% 100%, 6% 100%, 0 80%);
-      padding: 8px 20px;
+      background:rgba(0,212,255,.12); color:var(--neon);
+      border-color:var(--neon); padding:8px 18px;
+      clip-path:polygon(0 0,94% 0,100% 20%,100% 100%,6% 100%,0 80%);
     }
-    .nav-links a.contact-btn:hover { background: var(--rust-light); border-color: var(--rust-light); }
+    .nav-links a.contact-btn:hover { background:rgba(0,212,255,.25); }
 
     .theme-toggle, .menu-toggle {
-      width: 36px; height: 36px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--aged);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all .2s;
-      margin-left: 12px;
+      width:36px; height:36px; border:1px solid var(--border);
+      background:transparent; color:var(--aged); cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:all .2s; margin-left:10px; font-size:14px;
     }
-    .theme-toggle:hover { color: var(--gold); border-color: var(--gold); }
-    .menu-toggle { display: none; }
+    .theme-toggle:hover, .menu-toggle:hover { color:var(--neon); border-color:var(--neon); }
+    .menu-toggle { display:none; }
 
-    /* ─── SPEED LINES (decorative) ───────────────────── */
-    .speed-lines {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-      pointer-events: none;
-    }
-    .speed-lines::before {
-      content: '';
-      position: absolute;
-      top: 50%; left: 50%;
-      width: 200%; height: 200%;
-      transform: translate(-50%, -50%);
-      background: repeating-conic-gradient(
-        from 0deg at 50% 50%,
-        rgba(192,57,43,.04) 0deg,
-        transparent 1deg,
-        transparent 5deg,
-        rgba(192,57,43,.02) 6deg,
-        transparent 7deg
-      );
-    }
-
-    /* ─── HERO ────────────────────────────────────────── */
+    /* ── HERO ── */
     .hero-section {
-      position: relative;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      padding: 90px 40px 120px;
-      overflow: visible;
-      background:
-        linear-gradient(135deg, rgba(192,57,43,.12) 0%, transparent 50%),
-        linear-gradient(to bottom, var(--ink) 0%, #120e08 100%);
+      position:relative; min-height:100vh;
+      display:flex; align-items:center;
+      padding:90px 40px 140px;
+      background:linear-gradient(135deg,rgba(0,212,255,.06) 0%,transparent 55%),
+                 linear-gradient(to bottom,var(--ink) 0%,#080d18 100%);
     }
+    .hero-content { position:relative; z-index:2; max-width:820px; width:100%; }
+    .hero-eyebrow { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+    .hero-eyebrow::before { content:''; display:block; width:36px; height:2px; background:var(--neon); box-shadow:0 0 8px var(--neon); }
+    .hero-eyebrow span { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--neon); }
 
-    /* No JP watermark */
-    .hero-section::before { display: none; }
+    .hero-title { font-family:'Bebas Neue',sans-serif; line-height:.92; margin-bottom:28px; }
+    .hero-title .t1 { font-size:clamp(48px,8vw,130px); color:var(--paper); display:block; letter-spacing:-1px; }
+    .hero-title .t2 { font-size:clamp(40px,7vw,115px); display:block; letter-spacing:-1px; color:var(--neon); text-shadow:0 0 30px rgba(0,212,255,.6),0 0 60px rgba(0,212,255,.3); }
+    .hero-title .t3 { font-size:clamp(40px,7vw,115px); color:var(--paper); display:block; letter-spacing:-1px; opacity:.85; }
 
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      max-width: 800px;
-    }
-
-    .hero-eyebrow {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .hero-eyebrow span {
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      color: var(--rust);
-    }
-    .hero-eyebrow::before {
-      content: '';
-      display: block;
-      width: 40px; height: 2px;
-      background: var(--rust);
-    }
-
-    .hero-title {
-      font-family: 'Bebas Neue', sans-serif;
-      line-height: .9;
-      margin-bottom: 8px;
-    }
-    .hero-title .t1 {
-      font-size: clamp(52px, 9vw, 140px);
-      color: var(--paper);
-      display: block;
-      letter-spacing: -1px;
-    }
-    .hero-title .t2 {
-      font-size: clamp(44px, 8vw, 120px);
-      display: block;
-      letter-spacing: -1px;
-      -webkit-text-stroke: 2px var(--gold);
-      color: transparent;
-    }
-    .hero-title .t3 {
-      font-size: clamp(44px, 8vw, 120px);
-      color: var(--rust);
-      display: block;
-      letter-spacing: -1px;
-    }
-
-    .hero-sub { display: none; }
-
-    /* ─── SEARCH ──────────────────────────────────────── */
-    .search-container {
-      display: flex;
-      gap: 0;
-      max-width: 580px;
-      margin-bottom: 32px;
-      position: relative;
-    }
-
+    /* ── SEARCH ── */
+    .search-container { display:flex; max-width:560px; margin-bottom:28px; }
     .search-container input {
-      flex: 1;
-      background: rgba(240,232,216,.06);
-      border: 2px solid var(--border);
-      border-right: none;
-      color: var(--paper);
-      padding: 14px 20px;
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: .5px;
-      outline: none;
-      transition: border-color .2s;
+      flex:1; background:rgba(0,212,255,.05); border:2px solid var(--border);
+      border-right:none; color:var(--paper); padding:13px 18px;
+      font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:500;
+      outline:none; transition:border-color .2s; min-width:0;
     }
-    .search-container input::placeholder { color: var(--muted); }
-    .search-container input:focus { border-color: var(--gold); }
-
+    .search-container input::placeholder { color:var(--muted); }
+    .search-container input:focus { border-color:var(--neon); box-shadow:0 0 0 1px var(--neon); }
     .search-container button {
-      background: var(--rust);
-      border: 2px solid var(--rust);
-      color: #fff;
-      padding: 14px 28px;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 16px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      display: flex; align-items: center; gap: 8px;
-      transition: background .2s;
-      clip-path: polygon(0 0, 100% 0, 100% 100%, 8% 100%);
-      padding-left: 20px;
+      background:var(--neon); border:2px solid var(--neon); color:var(--ink);
+      padding:13px 24px; font-family:'Bebas Neue',sans-serif; font-size:16px;
+      letter-spacing:2px; cursor:pointer; display:flex; align-items:center; gap:8px;
+      transition:all .2s; white-space:nowrap; flex-shrink:0;
+      clip-path:polygon(0 0,100% 0,100% 100%,8% 100%); padding-left:18px;
+      font-weight:700;
     }
-    .search-container button:hover { background: var(--rust-light); }
+    .search-container button:hover { background:var(--rust-light); box-shadow:0 0 20px var(--neon-glow); }
 
-    /* ─── GENRE FILTERS ───────────────────────────────── */
-    .genre-filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
+    /* ── GENRE FILTERS ── */
+    .genre-filters { display:flex; flex-wrap:wrap; gap:7px; max-width:820px; }
     .filter-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 7px 18px;
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all .2s;
-      position: relative;
-      overflow: hidden;
+      background:transparent; border:1px solid var(--border); color:var(--muted);
+      padding:6px 16px; font-family:'Rajdhani',sans-serif; font-weight:600;
+      font-size:12px; letter-spacing:1.5px; text-transform:uppercase;
+      cursor:pointer; transition:all .2s; position:relative; overflow:hidden;
+      white-space:nowrap;
     }
     .filter-btn::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: var(--rust);
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform .2s;
-      z-index: -1;
+      content:''; position:absolute; inset:0; background:var(--neon);
+      transform:scaleX(0); transform-origin:left; transition:transform .2s; z-index:-1;
     }
-    .filter-btn:hover::before,
-    .filter-btn.active::before { transform: scaleX(1); }
-    .filter-btn:hover,
-    .filter-btn.active {
-      color: #fff;
-      border-color: var(--rust);
-    }
+    .filter-btn:hover::before, .filter-btn.active::before { transform:scaleX(1); }
+    .filter-btn:hover, .filter-btn.active { color:var(--ink); border-color:var(--neon); }
 
-    /* ─── HERO STATS STRIP ────────────────────────────── */
+    /* ── STATS STRIP ── */
     .stats-strip {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      background: rgba(26,20,16,.8);
-      border-top: 1px solid var(--border);
-      display: flex;
-      backdrop-filter: blur(8px);
+      position:absolute; bottom:0; left:0; right:0;
+      background:rgba(13,17,32,.85); border-top:1px solid var(--border);
+      display:flex; backdrop-filter:blur(8px);
     }
-    .stat-item {
-      flex: 1;
-      padding: 16px 24px;
-      border-right: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .stat-item:last-child { border-right: none; }
-    .stat-icon { color: var(--rust); font-size: 18px; }
-    .stat-value {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 22px;
-      color: var(--gold);
-      line-height: 1;
-    }
-    .stat-label {
-      font-size: 11px;
-      letter-spacing: 1px;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
+    .stat-item { flex:1; padding:14px 20px; border-right:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+    .stat-item:last-child { border-right:none; }
+    .stat-icon { color:var(--neon); font-size:17px; }
+    .stat-value { font-family:'Bebas Neue',sans-serif; font-size:21px; color:var(--neon); line-height:1; text-shadow:0 0 10px rgba(0,212,255,.4); }
+    .stat-label { font-size:10px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; }
 
-    /* ─── SECTION HEADERS ─────────────────────────────── */
-    .section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 28px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border);
-    }
-    .section-title-wrap { display: flex; align-items: center; gap: 14px; }
-    .section-num {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 11px;
-      letter-spacing: 3px;
-      color: var(--rust);
-      background: rgba(192,57,43,.1);
-      border: 1px solid var(--rust);
-      padding: 3px 8px;
-    }
-    .section-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 28px;
-      letter-spacing: 3px;
-      color: var(--paper);
-    }
-    .section-title .acc { color: var(--gold); }
-    .section-view-all {
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 2px;
-      color: var(--muted);
-      text-decoration: none;
-      text-transform: uppercase;
-      display: flex; align-items: center; gap: 6px;
-      border-bottom: 1px solid transparent;
-      transition: all .2s;
-    }
-    .section-view-all:hover { color: var(--gold); border-color: var(--gold); }
+    /* ── SECTION HEADERS ── */
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+    .section-title-wrap { display:flex; align-items:center; gap:12px; }
+    .section-num { font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:3px; color:var(--neon); background:rgba(0,212,255,.08); border:1px solid var(--neon); padding:3px 7px; }
+    .section-title { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:3px; color:var(--paper); }
+    .section-title .acc { color:var(--neon); text-shadow:0 0 10px rgba(0,212,255,.4); }
+    .section-view-all { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--muted); text-decoration:none; text-transform:uppercase; display:flex; align-items:center; gap:6px; border-bottom:1px solid transparent; transition:all .2s; }
+    .section-view-all:hover { color:var(--neon); border-color:var(--neon); }
 
-    /* ─── CONTENT AREA ────────────────────────────────── */
-    .content-area {
-      position: relative;
-      z-index: 2;
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 60px 40px 80px;
-    }
+    /* ── CONTENT AREA ── */
+    .content-area { position:relative; z-index:2; max-width:1400px; margin:0 auto; padding:56px 40px 80px; }
 
-    /* ─── MANGA GRID ──────────────────────────────────── */
-    .manga-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 20px;
-    }
+    /* ── MANGA GRID ── */
+    .manga-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:18px; }
 
-    /* ─── MANGA CARD ──────────────────────────────────── */
-    .manga-card {
-      position: relative;
-      cursor: pointer;
-      group: card;
-      animation: fadeUp .4s ease both;
-    }
+    /* ── MANGA CARD ── */
+    .manga-card { position:relative; cursor:pointer; animation:fadeUp .4s ease both; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .manga-card:hover .card-cover { transform: scale(1.04); }
-    .manga-card:hover .card-overlay { opacity: 1; }
-    .manga-card:hover .card-frame { border-color: var(--gold); box-shadow: 0 0 20px rgba(212,160,23,.2), inset 0 0 20px rgba(0,0,0,.4); }
+    .manga-card:hover .card-cover { transform:scale(1.04); }
+    .manga-card:hover .card-overlay { opacity:1; }
+    .manga-card:hover .card-frame { border-color:var(--neon); box-shadow:0 0 20px rgba(0,212,255,.2); }
 
     .card-frame {
-      border: 2px solid var(--border);
-      overflow: hidden;
-      position: relative;
-      aspect-ratio: 3/4;
-      background: var(--panel);
-      transition: border-color .2s, box-shadow .2s;
-      clip-path: polygon(0 0, 92% 0, 100% 8%, 100% 100%, 8% 100%, 0 92%);
+      border:2px solid var(--border); overflow:hidden; position:relative;
+      aspect-ratio:3/4; background:var(--panel); transition:border-color .2s,box-shadow .2s;
+      clip-path:polygon(0 0,92% 0,100% 8%,100% 100%,8% 100%,0 92%);
     }
-
-    .card-cover {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-      transition: transform .35s ease;
-    }
-
+    .card-cover { width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s ease; }
     .card-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to top, rgba(10,8,6,.95) 0%, rgba(10,8,6,.3) 60%, transparent 100%);
-      opacity: .7;
-      transition: opacity .25s;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      padding: 14px;
+      position:absolute; inset:0;
+      background:linear-gradient(to top,rgba(6,8,15,.97) 0%,rgba(6,8,15,.3) 55%,transparent 100%);
+      opacity:.75; transition:opacity .25s; display:flex; flex-direction:column;
+      justify-content:flex-end; padding:12px;
     }
+    .card-badge { position:absolute; top:8px; right:8px; background:var(--neon); color:var(--ink); font-family:'Bebas Neue',sans-serif; font-size:10px; letter-spacing:1.5px; padding:3px 7px; clip-path:polygon(0 0,100% 0,100% 70%,90% 100%,0 100%); font-weight:700; }
+    .card-rating { position:absolute; top:8px; left:8px; background:rgba(0,0,0,.75); border:1px solid var(--neon); color:var(--neon); font-family:'Space Mono',monospace; font-size:10px; padding:3px 7px; display:flex; align-items:center; gap:4px; }
+    .card-title { font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:1px; color:var(--paper); line-height:1.2; margin-bottom:4px; }
+    .card-meta { display:flex; align-items:center; gap:7px; font-family:'Space Mono',monospace; font-size:9px; color:var(--muted); }
+    .card-meta .genre-tag { color:var(--neon); }
+    .card-actions { display:flex; gap:5px; margin-top:7px; }
+    .card-btn { flex:1; background:rgba(0,212,255,.15); border:1px solid var(--neon); color:var(--neon); padding:6px 0; font-family:'Rajdhani',sans-serif; font-weight:700; font-size:11px; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all .2s; text-align:center; }
+    .card-btn:hover { background:var(--neon); color:var(--ink); }
+    .card-btn.secondary { background:rgba(0,212,255,.08); border-color:var(--border); color:var(--muted); flex:0; padding:6px 10px; }
+    .card-btn.secondary:hover { border-color:var(--neon); color:var(--neon); background:rgba(0,212,255,.12); }
 
-    .card-badge {
-      position: absolute;
-      top: 10px; right: 10px;
-      background: var(--rust);
-      color: #fff;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 11px;
-      letter-spacing: 1.5px;
-      padding: 3px 8px;
-      clip-path: polygon(0 0, 100% 0, 100% 70%, 90% 100%, 0 100%);
-    }
+    /* ── FEATURED BANNER ── */
+    .featured-banner { position:relative; height:300px; margin-bottom:56px; overflow:hidden; border:2px solid var(--border); clip-path:polygon(0 0,97% 0,100% 3%,100% 100%,3% 100%,0 97%); box-shadow:0 0 40px rgba(0,212,255,.08); }
+    .featured-bg { position:absolute; inset:0; background:linear-gradient(135deg,#08101e 0%,#0d1828 100%); display:flex; align-items:stretch; }
+    .featured-img-wrap { width:210px; flex-shrink:0; overflow:hidden; position:relative; }
+    .featured-img-wrap::after { content:''; position:absolute; inset:0; background:linear-gradient(to right,transparent 40%,#08101e); }
+    .featured-img-wrap img { width:100%; height:100%; object-fit:cover; opacity:.65; }
+    .featured-content { flex:1; padding:36px 40px; display:flex; flex-direction:column; justify-content:center; z-index:2; min-width:0; }
+    .featured-label { font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:4px; color:var(--neon); margin-bottom:10px; display:flex; align-items:center; gap:8px; text-shadow:0 0 8px rgba(0,212,255,.5); }
+    .featured-label::before { content:''; display:block; width:22px; height:2px; background:var(--neon); box-shadow:0 0 6px var(--neon); }
+    .featured-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(32px,5vw,60px); letter-spacing:2px; color:var(--paper); line-height:1; margin-bottom:10px; }
+    .featured-tags { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:18px; }
+    .featured-tag { border:1px solid var(--border); color:var(--aged); padding:3px 10px; font-size:10px; letter-spacing:1px; font-family:'Space Mono',monospace; }
+    .featured-desc { font-size:13px; color:var(--muted); line-height:1.6; max-width:460px; margin-bottom:20px; }
+    .featured-actions { display:flex; gap:10px; }
+    .featured-banner::before { content:''; position:absolute; top:0; right:0; width:0; height:0; border-style:solid; border-width:0 50px 50px 0; border-color:transparent var(--neon) transparent transparent; z-index:10; opacity:.7; }
 
-    .card-rating {
-      position: absolute;
-      top: 10px; left: 10px;
-      background: rgba(0,0,0,.7);
-      border: 1px solid var(--gold);
-      color: var(--gold);
-      font-family: 'Space Mono', monospace;
-      font-size: 10px;
-      padding: 3px 7px;
-      display: flex; align-items: center; gap: 4px;
-    }
+    .btn-primary { background:var(--neon); border:2px solid var(--neon); color:var(--ink); padding:11px 24px; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:2px; cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .2s; clip-path:polygon(0 0,94% 0,100% 20%,100% 100%,0 100%); font-weight:700; }
+    .btn-primary:hover { background:var(--rust-light); box-shadow:0 0 20px var(--neon-glow); }
+    .btn-outline { background:transparent; border:2px solid var(--border); color:var(--aged); padding:11px 22px; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:2px; cursor:pointer; transition:all .2s; }
+    .btn-outline:hover { border-color:var(--neon); color:var(--neon); }
 
-    .card-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 16px;
-      letter-spacing: 1px;
-      color: var(--paper);
-      line-height: 1.2;
-      margin-bottom: 4px;
-    }
+    /* ── LOADING ── */
+    .loading { display:none; flex-direction:column; align-items:center; gap:14px; padding:60px; color:var(--muted); }
+    .loading.show { display:flex; }
+    .loading-spinner { width:44px; height:44px; border:3px solid var(--border); border-top-color:var(--neon); border-radius:50%; animation:spin .8s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .loading-text { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:3px; text-transform:uppercase; color:var(--neon); }
 
-    .card-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: 'Space Mono', monospace;
-      font-size: 9px;
-      color: var(--muted);
-    }
-    .card-meta .genre-tag {
-      color: var(--rust-light);
-    }
+    /* ── END RESULTS ── */
+    .end-results { display:none; text-align:center; padding:56px 40px; border-top:1px solid var(--border); margin-top:36px; }
+    .end-results.show { display:block; }
+    .end-results-inner { display:inline-flex; flex-direction:column; align-items:center; gap:8px; }
+    .end-results i { color:var(--neon); font-size:26px; margin-bottom:8px; }
+    .end-results .end-title { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:3px; color:var(--aged); }
+    .end-results .end-sub { font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); letter-spacing:2px; }
 
-    .card-actions {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
-    }
+    /* ── DETAILS PAGE ── */
+    .details-page { position:fixed; inset:0; z-index:900; background:var(--ink); overflow-y:auto; display:none; }
+    .details-page.open { display:block; }
+    .details-container { max-width:1100px; margin:0 auto; padding:80px 32px 60px; }
+    .back-button { display:inline-flex; align-items:center; gap:10px; background:transparent; border:1px solid var(--border); color:var(--aged); padding:9px 18px; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:all .2s; margin-bottom:36px; }
+    .back-button:hover { border-color:var(--neon); color:var(--neon); }
+    .manga-details-wrapper { display:grid; grid-template-columns:250px 1fr; gap:44px; }
+    .details-cover { border:2px solid var(--border); clip-path:polygon(0 0,90% 0,100% 10%,100% 100%,10% 100%,0 90%); overflow:hidden; box-shadow:0 0 30px rgba(0,212,255,.1); }
+    .details-cover img { width:100%; display:block; }
+    .details-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(30px,5vw,54px); letter-spacing:2px; color:var(--paper); line-height:1; margin-bottom:10px; }
+    .details-sub-info { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; align-items:center; }
+    .info-chip { display:flex; align-items:center; gap:6px; font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); }
+    .info-chip i { color:var(--neon); }
+    .details-genres { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:20px; }
+    .genre-pill { border:1px solid var(--border); color:var(--aged); padding:4px 11px; font-size:11px; letter-spacing:1px; font-family:'Rajdhani',sans-serif; font-weight:600; transition:all .2s; cursor:default; }
+    .genre-pill:hover { border-color:var(--neon); color:var(--neon); }
+    .details-synopsis { font-size:14px; color:var(--muted); line-height:1.8; margin-bottom:24px; border-left:3px solid var(--neon); padding-left:16px; }
+    .details-actions { display:flex; gap:10px; margin-bottom:36px; flex-wrap:wrap; }
+    .chapters-title { font-family:'Bebas Neue',sans-serif; font-size:19px; letter-spacing:3px; color:var(--paper); margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+    .chapters-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(115px,1fr)); gap:7px; max-height:300px; overflow-y:auto; padding-right:4px; }
+    .chapter-item { background:var(--panel); border:1px solid var(--border); color:var(--aged); padding:9px 12px; font-family:'Space Mono',monospace; font-size:10px; letter-spacing:1px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; transition:all .2s; }
+    .chapter-item:hover { border-color:var(--neon); color:var(--neon); background:rgba(0,212,255,.05); box-shadow:0 0 8px rgba(0,212,255,.1); }
+    .chapter-item.read { opacity:.5; }
+    .chapter-item .ch-source { font-size:8px; color:var(--muted); margin-left:4px; }
 
-    .card-btn {
-      flex: 1;
-      background: rgba(192,57,43,.8);
-      border: 1px solid var(--rust);
-      color: #fff;
-      padding: 6px 0;
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 700;
-      font-size: 11px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all .2s;
-      text-align: center;
-    }
-    .card-btn:hover { background: var(--rust); }
-    .card-btn.secondary {
-      background: rgba(212,160,23,.15);
-      border-color: var(--gold);
-      color: var(--gold);
-      flex: 0; padding: 6px 10px;
-    }
-    .card-btn.secondary:hover { background: rgba(212,160,23,.3); }
+    /* ── READER PAGE ── */
+    .reader-page { position:fixed; inset:0; z-index:950; background:#000; display:none; flex-direction:column; }
+    .reader-page.open { display:flex; }
+    .reader-header { height:56px; background:rgba(6,8,15,.97); border-bottom:2px solid var(--neon); display:flex; align-items:center; padding:0 20px; gap:12px; flex-shrink:0; box-shadow:0 0 20px rgba(0,212,255,.15); }
+    .reader-title { font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:2px; color:var(--paper); flex:1; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+    .reader-controls { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+    .reader-nav-btn { width:34px; height:34px; background:transparent; border:1px solid var(--border); color:var(--aged); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; font-size:13px; }
+    .reader-nav-btn:hover { border-color:var(--neon); color:var(--neon); }
+    #chapterIndicator { font-family:'Space Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px; white-space:nowrap; }
+    .reader-body { flex:1; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:16px; gap:3px; background:#0a0a0a; }
+    .reader-body img { max-width:800px; width:100%; display:block; }
 
-    /* ─── FEATURED BANNER ─────────────────────────────── */
-    .featured-banner {
-      position: relative;
-      height: 320px;
-      margin-bottom: 60px;
-      overflow: hidden;
-      border: 2px solid var(--border);
-      clip-path: polygon(0 0, 97% 0, 100% 3%, 100% 100%, 3% 100%, 0 97%);
-    }
+    /* ── DOWNLOAD MODAL ── */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); backdrop-filter:blur(5px); z-index:1100; display:none; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal-content { background:var(--panel2); border:2px solid var(--neon); clip-path:polygon(0 0,96% 0,100% 4%,100% 100%,4% 100%,0 96%); width:420px; max-width:95vw; overflow:hidden; box-shadow:0 0 40px rgba(0,212,255,.2); }
+    .modal-header { background:rgba(0,212,255,.07); border-bottom:1px solid var(--border); padding:16px 22px; display:flex; align-items:center; justify-content:space-between; }
+    .modal-header h3 { font-family:'Bebas Neue',sans-serif; font-size:17px; letter-spacing:2px; color:var(--paper); display:flex; align-items:center; gap:9px; }
+    .modal-header h3 i { color:var(--neon); }
+    .close-modal { background:transparent; border:1px solid var(--border); color:var(--muted); width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; transition:all .2s; }
+    .close-modal:hover { border-color:var(--neon); color:var(--neon); }
+    .modal-body { padding:22px; }
+    .chapter-info { font-family:'Space Mono',monospace; font-size:11px; color:var(--muted); margin-bottom:18px; letter-spacing:1px; }
+    .quality-options { display:flex; flex-direction:column; gap:9px; margin-bottom:20px; }
+    .quality-option { display:flex; align-items:center; gap:10px; padding:11px 14px; border:1px solid var(--border); cursor:pointer; transition:border-color .2s; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13px; letter-spacing:.5px; color:var(--aged); }
+    .quality-option:hover { border-color:var(--neon); }
+    .quality-option input { accent-color:var(--neon); }
+    .download-progress { margin-bottom:14px; }
+    .progress-bar { height:3px; background:var(--border); margin-bottom:7px; overflow:hidden; }
+    .progress-fill { height:100%; background:linear-gradient(to right,var(--neon2),var(--neon)); width:0%; transition:width .3s; box-shadow:0 0 8px var(--neon); }
+    #progressText { font-family:'Space Mono',monospace; font-size:11px; color:var(--neon); letter-spacing:1px; }
+    .download-btn { width:100%; background:var(--neon); border:none; color:var(--ink); padding:13px; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:3px; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; gap:9px; font-weight:700; }
+    .download-btn:hover { background:var(--rust-light); box-shadow:0 0 20px var(--neon-glow); }
 
-    .featured-bg {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, #1a0a08 0%, #2a1510 50%, #0a0806 100%);
-      display: flex;
-      align-items: stretch;
-    }
+    /* ── TOAST ── */
+    .toast-container { position:fixed; bottom:22px; right:22px; z-index:2000; display:flex; flex-direction:column; gap:9px; }
+    .toast { background:var(--panel2); border:1px solid var(--border); border-left:3px solid var(--neon); padding:11px 18px; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:14px; color:var(--paper); display:flex; align-items:center; gap:9px; animation:slideIn .3s ease; min-width:270px; }
+    .toast.success { border-left-color:#00ff88; }
+    .toast.warning { border-left-color:#ffaa00; }
+    .toast.error { border-left-color:#ff4444; }
+    @keyframes slideIn { from{opacity:0;transform:translateX(28px)} to{opacity:1;transform:translateX(0)} }
 
-    .featured-img-wrap {
-      width: 220px;
-      flex-shrink: 0;
-      overflow: hidden;
-      position: relative;
-    }
-    .featured-img-wrap::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to right, transparent 50%, var(--ink));
-    }
-    .featured-img-wrap img {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      opacity: .7;
-    }
+    /* ── BACK TO TOP ── */
+    .back-to-top { position:fixed; bottom:30px; left:30px; z-index:500; width:42px; height:42px; background:var(--neon); border:none; color:var(--ink); cursor:pointer; display:none; align-items:center; justify-content:center; font-size:15px; clip-path:polygon(50% 0%,100% 50%,85% 50%,85% 100%,15% 100%,15% 50%,0% 50%); transition:background .2s; }
+    .back-to-top.show { display:flex; }
+    .back-to-top:hover { background:var(--rust-light); }
 
-    .featured-content {
-      flex: 1;
-      padding: 40px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      position: relative;
-      z-index: 2;
-    }
+    /* ── SECTION BLOCK ── */
+    .section-block { margin-top:56px; padding-top:56px; border-top:1px solid var(--border); }
+    .empty-state { display:flex; flex-direction:column; align-items:center; gap:10px; padding:56px 36px; color:var(--muted); }
+    .empty-state i { font-size:38px; color:var(--border); }
+    .empty-state .e-title { font-family:'Bebas Neue',sans-serif; font-size:19px; letter-spacing:2px; color:var(--aged); }
+    .empty-state .e-sub { font-size:13px; text-align:center; }
 
-    .featured-label {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 11px;
-      letter-spacing: 4px;
-      color: var(--rust);
-      margin-bottom: 12px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .featured-label::before {
-      content: '';
-      display: block;
-      width: 24px; height: 2px;
-      background: var(--rust);
-    }
+    /* ── SOURCE BADGE on chapter ── */
+    .src-badge { display:inline-block; font-size:8px; font-family:'Space Mono',monospace; letter-spacing:1px; background:rgba(0,212,255,.1); border:1px solid rgba(0,212,255,.3); color:var(--neon); padding:1px 5px; margin-left:4px; vertical-align:middle; border-radius:2px; }
 
-    .featured-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(36px, 5vw, 64px);
-      letter-spacing: 2px;
-      color: var(--paper);
-      line-height: 1;
-      margin-bottom: 12px;
-    }
-
-    .featured-desc {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.6;
-      max-width: 480px;
-      margin-bottom: 24px;
-    }
-
-    .featured-tags {
-      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;
-    }
-    .featured-tag {
-      border: 1px solid var(--border);
-      color: var(--aged);
-      padding: 4px 12px;
-      font-size: 11px;
-      letter-spacing: 1px;
-      font-family: 'Space Mono', monospace;
-    }
-
-    .featured-actions { display: flex; gap: 12px; }
-    .btn-primary {
-      background: var(--rust);
-      border: 2px solid var(--rust);
-      color: #fff;
-      padding: 12px 28px;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 16px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      display: flex; align-items: center; gap: 8px;
-      transition: all .2s;
-      clip-path: polygon(0 0, 94% 0, 100% 20%, 100% 100%, 0 100%);
-    }
-    .btn-primary:hover { background: var(--rust-light); }
-    .btn-outline {
-      background: transparent;
-      border: 2px solid var(--border);
-      color: var(--aged);
-      padding: 12px 24px;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 16px;
-      letter-spacing: 2px;
-      cursor: pointer;
-      transition: all .2s;
-    }
-    .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
-
-    /* corner decoration */
-    .featured-banner::before {
-      content: '';
-      position: absolute;
-      top: 0; right: 0;
-      width: 0; height: 0;
-      border-style: solid;
-      border-width: 0 60px 60px 0;
-      border-color: transparent var(--rust) transparent transparent;
-      z-index: 10;
-    }
-
-    /* ─── PANEL DIVIDER ───────────────────────────────── */
-    .panel-divider {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin: 60px 0 48px;
-      color: var(--muted);
-      font-family: 'Space Mono', monospace;
-      font-size: 10px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-    }
-    .panel-divider::before,
-    .panel-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: linear-gradient(to right, transparent, var(--border));
-    }
-    .panel-divider::after { background: linear-gradient(to left, transparent, var(--border)); }
-    .panel-divider .div-icon { color: var(--rust); font-size: 14px; }
-
-    /* ─── LOADING ─────────────────────────────────────── */
-    .loading {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      padding: 60px;
-      color: var(--muted);
-    }
-    .loading.show { display: flex; }
-
-    .loading-spinner {
-      width: 48px; height: 48px;
-      border: 3px solid var(--border);
-      border-top-color: var(--rust);
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-text {
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-    }
-
-    /* ─── END OF RESULTS ──────────────────────────────── */
-    .end-results {
-      display: none;
-      text-align: center;
-      padding: 60px 40px;
-      border-top: 1px solid var(--border);
-      margin-top: 40px;
-    }
-    .end-results.show { display: block; }
-    .end-results-inner {
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-    .end-results i { color: var(--rust); font-size: 28px; margin-bottom: 8px; }
-    .end-results .end-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 22px;
-      letter-spacing: 3px;
-      color: var(--aged);
-    }
-    .end-results .end-sub {
-      font-family: 'Noto Serif JP', serif;
-      font-size: 12px;
-      color: var(--muted);
-      letter-spacing: 2px;
-    }
-
-    /* ─── DETAILS PAGE ────────────────────────────────── */
-    .details-page {
-      position: fixed;
-      inset: 0;
-      z-index: 900;
-      background: var(--ink);
-      overflow-y: auto;
-      display: none;
-    }
-    .details-page.open { display: block; }
-
-    .details-container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 80px 40px 60px;
-    }
-
-    .back-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--aged);
-      padding: 10px 20px;
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all .2s;
-      margin-bottom: 40px;
-    }
-    .back-button:hover { border-color: var(--rust); color: var(--rust); }
-
-    .manga-details-wrapper {
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      gap: 48px;
-    }
-
-    .details-cover {
-      border: 2px solid var(--border);
-      clip-path: polygon(0 0, 90% 0, 100% 10%, 100% 100%, 10% 100%, 0 90%);
-      overflow: hidden;
-    }
-    .details-cover img { width: 100%; display: block; }
-
-    .details-info {}
-
-    .details-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(32px, 5vw, 56px);
-      letter-spacing: 2px;
-      color: var(--paper);
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-
-    .details-sub-info {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 20px;
-      align-items: center;
-    }
-    .info-chip {
-      display: flex; align-items: center; gap: 6px;
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .info-chip i { color: var(--rust); }
-    .info-chip.gold i { color: var(--gold); }
-
-    .details-genres {
-      display: flex; flex-wrap: wrap; gap: 6px;
-      margin-bottom: 24px;
-    }
-    .genre-pill {
-      border: 1px solid var(--border);
-      color: var(--aged);
-      padding: 4px 12px;
-      font-size: 11px;
-      letter-spacing: 1px;
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 600;
-      transition: all .2s;
-    }
-    .genre-pill:hover { border-color: var(--rust); color: var(--rust); }
-
-    .details-synopsis {
-      font-size: 15px;
-      color: var(--muted);
-      line-height: 1.8;
-      margin-bottom: 28px;
-      border-left: 3px solid var(--rust);
-      padding-left: 18px;
-    }
-
-    .details-actions {
-      display: flex; gap: 12px; margin-bottom: 40px; flex-wrap: wrap;
-    }
-
-    /* Chapters */
-    .chapters-section {}
-    .chapters-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 20px;
-      letter-spacing: 3px;
-      color: var(--paper);
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    .chapters-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 8px;
-      max-height: 320px;
-      overflow-y: auto;
-      padding-right: 4px;
-    }
-    .chapter-item {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      color: var(--aged);
-      padding: 10px 14px;
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 1px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      transition: all .2s;
-    }
-    .chapter-item:hover { border-color: var(--rust); color: var(--rust); background: rgba(192,57,43,.05); }
-    .chapter-item.read { color: var(--muted); }
-
-    /* ─── READER PAGE ─────────────────────────────────── */
-    .reader-page {
-      position: fixed;
-      inset: 0;
-      z-index: 950;
-      background: #000;
-      display: none;
-      flex-direction: column;
-    }
-    .reader-page.open { display: flex; }
-
-    .reader-header {
-      height: 56px;
-      background: rgba(10,8,6,.95);
-      border-bottom: 2px solid var(--rust);
-      display: flex;
-      align-items: center;
-      padding: 0 24px;
-      gap: 16px;
-      flex-shrink: 0;
-      backdrop-filter: blur(8px);
-    }
-
-    .reader-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 18px;
-      letter-spacing: 2px;
-      color: var(--paper);
-      flex: 1;
-      text-align: center;
-    }
-
-    .reader-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .reader-nav-btn {
-      width: 34px; height: 34px;
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--aged);
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all .2s;
-      font-size: 13px;
-    }
-    .reader-nav-btn:hover { border-color: var(--rust); color: var(--rust); }
-
-    #chapterIndicator {
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 1px;
-      white-space: nowrap;
-    }
-
-    .reader-body {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-      gap: 4px;
-      background: #111;
-    }
-    .reader-body img {
-      max-width: 800px;
-      width: 100%;
-      display: block;
-    }
-
-    /* ─── DOWNLOAD MODAL ──────────────────────────────── */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.75);
-      backdrop-filter: blur(4px);
-      z-index: 1100;
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-overlay.open { display: flex; }
-
-    .modal-content {
-      background: var(--panel2);
-      border: 2px solid var(--border);
-      clip-path: polygon(0 0, 96% 0, 100% 4%, 100% 100%, 4% 100%, 0 96%);
-      width: 420px;
-      max-width: 95vw;
-      overflow: hidden;
-    }
-
-    .modal-header {
-      background: rgba(192,57,43,.1);
-      border-bottom: 1px solid var(--border);
-      padding: 18px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .modal-header h3 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 18px;
-      letter-spacing: 2px;
-      color: var(--paper);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .modal-header h3 i { color: var(--rust); }
-    .close-modal {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      width: 28px; height: 28px;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 12px;
-      transition: all .2s;
-    }
-    .close-modal:hover { border-color: var(--rust); color: var(--rust); }
-
-    .modal-body { padding: 24px; }
-
-    .chapter-info {
-      font-family: 'Space Mono', monospace;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 20px;
-      letter-spacing: 1px;
-    }
-
-    .quality-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
-    .quality-option {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
-      border: 1px solid var(--border);
-      cursor: pointer;
-      transition: border-color .2s;
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 600;
-      font-size: 14px;
-      letter-spacing: .5px;
-      color: var(--aged);
-    }
-    .quality-option:hover { border-color: var(--gold); }
-    .quality-option input { accent-color: var(--rust); }
-
-    .download-progress { margin-bottom: 16px; }
-    .progress-bar {
-      height: 4px;
-      background: var(--border);
-      margin-bottom: 8px;
-      overflow: hidden;
-    }
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(to right, var(--rust), var(--gold));
-      width: 0%;
-      transition: width .3s;
-    }
-    #progressText {
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 1px;
-    }
-
-    .download-btn {
-      width: 100%;
-      background: var(--rust);
-      border: none;
-      color: #fff;
-      padding: 14px;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 16px;
-      letter-spacing: 3px;
-      cursor: pointer;
-      transition: background .2s;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-    }
-    .download-btn:hover { background: var(--rust-light); }
-
-    /* ─── TOAST ───────────────────────────────────────── */
-    .toast-container {
-      position: fixed;
-      bottom: 24px; right: 24px;
-      z-index: 2000;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .toast {
-      background: var(--panel2);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--rust);
-      padding: 12px 20px;
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 600;
-      font-size: 14px;
-      color: var(--paper);
-      display: flex; align-items: center; gap: 10px;
-      animation: slideIn .3s ease;
-      min-width: 280px;
-    }
-    .toast.success { border-left-color: #27ae60; }
-    .toast.warning { border-left-color: var(--gold); }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(30px); }
-      to   { opacity: 1; transform: translateX(0); }
-    }
-
-    /* ─── BACK TO TOP ─────────────────────────────────── */
-    .back-to-top {
-      position: fixed;
-      bottom: 32px; left: 32px;
-      z-index: 500;
-      width: 44px; height: 44px;
-      background: var(--rust);
-      border: none;
-      color: #fff;
-      cursor: pointer;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      clip-path: polygon(50% 0%, 100% 50%, 85% 50%, 85% 100%, 15% 100%, 15% 50%, 0% 50%);
-      transition: background .2s;
-    }
-    .back-to-top.show { display: flex; }
-    .back-to-top:hover { background: var(--rust-light); }
-
-    /* ─── BOOKMARKS / DOWNLOADS SECTIONS ─────────────── */
-    .section-block {
-      margin-top: 60px;
-      padding-top: 60px;
-      border-top: 1px solid var(--border);
-    }
-
-    /* ─── EMPTY STATE ─────────────────────────────────── */
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      padding: 60px 40px;
-      color: var(--muted);
-    }
-    .empty-state i { font-size: 40px; color: var(--border); }
-    .empty-state .e-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 20px;
-      letter-spacing: 2px;
-      color: var(--aged);
-    }
-    .empty-state .e-sub {
-      font-size: 13px;
-      letter-spacing: .5px;
-      text-align: center;
-    }
-
-    /* ─── LIGHT THEME ─────────────────────────────────── */
+    /* ── LIGHT MODE ── */
     body.light {
-      --ink: #f5efe4;
-      --paper: #1a1410;
-      --aged: #4a3c28;
-      --panel: #ede3d0;
-      --panel2: #e5dac8;
-      --border: #c8b89a;
-      --muted: #8a7a60;
+      --ink:#f0f4fc; --panel:#e4eaf6; --panel2:#dce4f0;
+      --border:#b8c8e0; --paper:#0d1828; --aged:#2a3a56;
+      --muted:#6080a0;
     }
-    body.light .navbar { background: rgba(245,239,228,.92); }
-    body.light .hero-section {
-      background: linear-gradient(135deg, rgba(192,57,43,.08) 0%, transparent 50%), var(--ink);
-    }
+    body.light .navbar { background:rgba(240,244,252,.93); }
+    body.light .hero-section { background:linear-gradient(135deg,rgba(0,212,255,.06) 0%,transparent 55%),var(--ink); }
 
-    /* ─── RESPONSIVE ──────────────────────────────────── */
-    @media (max-width: 900px) {
-      .manga-details-wrapper { grid-template-columns: 1fr; }
-      .featured-img-wrap { width: 160px; }
+    /* ── RESPONSIVE ── */
+    @media (max-width:900px) {
+      .manga-details-wrapper { grid-template-columns:1fr; }
+      .featured-img-wrap { width:150px; }
     }
-    @media (max-width: 700px) {
-      .navbar { padding: 0 16px; }
-      .nav-links { display: none; flex-direction: column; position: fixed; top: 64px; left: 0; right: 0; background: var(--panel2); border-bottom: 2px solid var(--rust); padding: 16px; gap: 8px; z-index: 999; }
-      .nav-links.open { display: flex; }
-      .menu-toggle { display: flex; }
-      .hero-section { padding: 90px 20px 40px; }
-      .content-area { padding: 40px 20px; }
-      .manga-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
-      .featured-banner { height: auto; }
-      .featured-bg { flex-direction: column; }
-      .featured-img-wrap { width: 100%; height: 200px; }
-      .featured-content { padding: 24px; }
-      .stats-strip { display: none; }
-      .details-container { padding: 80px 20px 40px; }
+    @media (max-width:700px) {
+      .navbar { padding:0 14px; }
+      .nav-links { display:none; flex-direction:column; position:fixed; top:64px; left:0; right:0; background:var(--panel2); border-bottom:2px solid var(--neon); padding:14px; gap:6px; z-index:999; }
+      .nav-links.open { display:flex; }
+      .menu-toggle { display:flex; }
+      .hero-section { padding:84px 18px 130px; }
+      .content-area { padding:36px 16px; }
+      .manga-grid { grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:12px; }
+      .featured-banner { height:auto; }
+      .featured-bg { flex-direction:column; }
+      .featured-img-wrap { width:100%; height:180px; }
+      .featured-content { padding:20px; }
+      .stats-strip { flex-wrap:wrap; }
+      .stat-item { min-width:50%; }
+      .details-container { padding:72px 16px 40px; }
+      .search-container { max-width:100%; }
+      .genre-filters { max-width:100%; }
+      .reader-header { padding:0 12px; gap:8px; }
+      .reader-title { font-size:13px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- HALFTONE & EFFECTS -->
-  <div class="speed-lines"></div>
+  <div class="speed-lines" style="position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(0,212,255,.02) 0deg,transparent 1deg,transparent 5deg,rgba(0,212,255,.01) 6deg,transparent 7deg);"></div>
+  </div>
 
   <!-- NAVBAR -->
   <nav class="navbar">
     <a class="nav-brand" href="#">
-      <img class="brand-logo" src="https://i.imgur.com/qgZhkhV.jpeg" alt="Anicade Logo" />
+      <img class="brand-logo" src="https://i.imgur.com/qgZhkhV.jpeg" alt="Anicade" />
       <span class="brand-name">ANICADE<span class="bh">MANGA</span></span>
     </a>
     <div class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></div>
@@ -1211,10 +383,8 @@
     <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i></button>
   </nav>
 
-  <!-- MAIN WRAPPER -->
+  <!-- MAIN -->
   <div id="home">
-
-    <!-- HERO -->
     <section class="hero-section">
       <div class="hero-content">
         <div class="hero-eyebrow"><span>Your Ultimate Reading Hub</span></div>
@@ -1223,14 +393,11 @@
           <span class="t2">MANGA</span>
           <span class="t3">LOUNGE</span>
         </h1>
-        <p class="hero-sub">漫画・マンガ・manhwa — all in one place</p>
-
         <div class="search-container">
-          <input type="text" id="searchInput" placeholder="Search titles, genres, authors…" />
+          <input type="text" id="searchInput" placeholder="Search titles, genres, authors…" autocomplete="off" />
           <button id="searchBtn"><i class="fas fa-search"></i> Search</button>
         </div>
-
-        <div class="genre-filters">
+        <div class="genre-filters" id="genreFilters">
           <button class="filter-btn active" data-genre="all">All</button>
           <button class="filter-btn" data-genre="action">Action</button>
           <button class="filter-btn" data-genre="romance">Romance</button>
@@ -1238,48 +405,39 @@
           <button class="filter-btn" data-genre="comedy">Comedy</button>
           <button class="filter-btn" data-genre="adventure">Adventure</button>
           <button class="filter-btn" data-genre="horror">Horror</button>
+          <button class="filter-btn" data-genre="thriller">Thriller</button>
+          <button class="filter-btn" data-genre="supernatural">Supernatural</button>
+          <button class="filter-btn" data-genre="sci-fi">Sci-Fi</button>
+          <button class="filter-btn" data-genre="mystery">Mystery</button>
+          <button class="filter-btn" data-genre="drama">Drama</button>
+          <button class="filter-btn" data-genre="slice of life">Slice of Life</button>
+          <button class="filter-btn" data-genre="sports">Sports</button>
+          <button class="filter-btn" data-genre="psychological">Psychological</button>
+          <button class="filter-btn" data-genre="ecchi">Ecchi</button>
+          <button class="filter-btn" data-genre="mecha">Mecha</button>
+          <button class="filter-btn" data-genre="historical">Historical</button>
+          <button class="filter-btn" data-genre="music">Music</button>
+          <button class="filter-btn" data-genre="magic">Magic</button>
         </div>
       </div>
-
-      <!-- Stats Strip -->
       <div class="stats-strip">
-        <div class="stat-item">
-          <i class="fas fa-book stat-icon"></i>
-          <div><div class="stat-value">2,400+</div><div class="stat-label">Titles</div></div>
-        </div>
-        <div class="stat-item">
-          <i class="fas fa-layer-group stat-icon"></i>
-          <div><div class="stat-value">180K+</div><div class="stat-label">Chapters</div></div>
-        </div>
-        <div class="stat-item">
-          <i class="fas fa-users stat-icon"></i>
-          <div><div class="stat-value">500K+</div><div class="stat-label">Readers</div></div>
-        </div>
-        <div class="stat-item">
-          <i class="fas fa-sync stat-icon"></i>
-          <div><div class="stat-value">Daily</div><div class="stat-label">Updates</div></div>
-        </div>
+        <div class="stat-item"><i class="fas fa-book stat-icon"></i><div><div class="stat-value">2,400+</div><div class="stat-label">Titles</div></div></div>
+        <div class="stat-item"><i class="fas fa-layer-group stat-icon"></i><div><div class="stat-value">180K+</div><div class="stat-label">Chapters</div></div></div>
+        <div class="stat-item"><i class="fas fa-users stat-icon"></i><div><div class="stat-value">500K+</div><div class="stat-label">Readers</div></div></div>
+        <div class="stat-item"><i class="fas fa-sync stat-icon"></i><div><div class="stat-value">Daily</div><div class="stat-label">Updates</div></div></div>
       </div>
     </section>
 
-    <!-- CONTENT -->
     <div class="content-area">
-
       <!-- Featured -->
       <div class="featured-banner" id="featuredBanner">
         <div class="featured-bg">
-          <div class="featured-img-wrap">
-            <img src="https://cdn.myanimelist.net/images/manga/2/253146l.jpg" alt="Featured" id="featuredImg" />
-          </div>
+          <div class="featured-img-wrap"><img src="https://cdn.myanimelist.net/images/manga/2/253146l.jpg" alt="Featured" id="featuredImg" /></div>
           <div class="featured-content">
             <div class="featured-label">Staff Pick · Featured</div>
             <div class="featured-title" id="featuredTitle">SOLO LEVELING</div>
-            <div class="featured-tags">
-              <span class="featured-tag">Action</span>
-              <span class="featured-tag">Fantasy</span>
-              <span class="featured-tag">Manhwa</span>
-            </div>
-            <p class="featured-desc" id="featuredDesc">In a world where hunters fight deadly monsters, Sung Jin-Woo is the weakest of them all — until one fateful dungeon changes everything. A masterpiece of power fantasy.</p>
+            <div class="featured-tags"><span class="featured-tag">Action</span><span class="featured-tag">Fantasy</span><span class="featured-tag">Manhwa</span></div>
+            <p class="featured-desc">In a world where hunters fight deadly monsters, Sung Jin-Woo is the weakest of them all — until one fateful dungeon changes everything.</p>
             <div class="featured-actions">
               <button class="btn-primary" id="featuredReadBtn"><i class="fas fa-book-reader"></i> Read Now</button>
               <button class="btn-outline" id="featuredBookmarkBtn"><i class="fas fa-bookmark"></i> Bookmark</button>
@@ -1288,73 +446,37 @@
         </div>
       </div>
 
-      <!-- Popular Section -->
+      <!-- Popular -->
       <div id="popular">
         <div class="section-header">
-          <div class="section-title-wrap">
-            <span class="section-num">01</span>
-            <h2 class="section-title">POPULAR <span class="acc">TITLES</span></h2>
-          </div>
+          <div class="section-title-wrap"><span class="section-num">01</span><h2 class="section-title">POPULAR <span class="acc">TITLES</span></h2></div>
           <a href="#" class="section-view-all">View All <i class="fas fa-arrow-right"></i></a>
         </div>
-
         <div id="results" class="manga-grid"></div>
-
-        <div class="loading" id="loading">
-          <div class="loading-spinner"></div>
-          <span class="loading-text">Loading content…</span>
-        </div>
-
-        <div class="end-results" id="endResults">
-          <div class="end-results-inner">
-            <i class="fas fa-scroll"></i>
-            <span class="end-title">END OF SCROLL</span>
-            <span class="end-sub">ɴᴏᴛʜɪɴɢ ᴍᴏʀᴇ ᴛᴏ sᴇᴇ ʜᴇʀᴇ</span>
-          </div>
-        </div>
+        <div class="loading" id="loading"><div class="loading-spinner"></div><span class="loading-text">Loading content…</span></div>
+        <div class="end-results" id="endResults"><div class="end-results-inner"><i class="fas fa-scroll"></i><span class="end-title">END OF SCROLL</span><span class="end-sub">Nothing more to see here</span></div></div>
       </div>
 
-      <!-- Bookmarks Section -->
+      <!-- Bookmarks -->
       <div class="section-block" id="bookmarks">
-        <div class="section-header">
-          <div class="section-title-wrap">
-            <span class="section-num">02</span>
-            <h2 class="section-title">MY <span class="acc">BOOKMARKS</span></h2>
-          </div>
-        </div>
+        <div class="section-header"><div class="section-title-wrap"><span class="section-num">02</span><h2 class="section-title">MY <span class="acc">BOOKMARKS</span></h2></div></div>
         <div id="bookmarksGrid" class="manga-grid"></div>
-        <div id="bookmarksEmpty" class="empty-state">
-          <i class="fas fa-bookmark"></i>
-          <span class="e-title">No Bookmarks Yet</span>
-          <span class="e-sub">Tap the bookmark icon on any title to save it here.</span>
-        </div>
+        <div id="bookmarksEmpty" class="empty-state" style="display:none"><i class="fas fa-bookmark"></i><span class="e-title">No Bookmarks Yet</span><span class="e-sub">Tap the bookmark icon on any title to save it here.</span></div>
       </div>
 
-      <!-- Downloads Section -->
+      <!-- Downloads -->
       <div class="section-block" id="downloads">
-        <div class="section-header">
-          <div class="section-title-wrap">
-            <span class="section-num">03</span>
-            <h2 class="section-title">MY <span class="acc">DOWNLOADS</span></h2>
-          </div>
-        </div>
+        <div class="section-header"><div class="section-title-wrap"><span class="section-num">03</span><h2 class="section-title">MY <span class="acc">DOWNLOADS</span></h2></div></div>
         <div id="downloadsGrid" class="manga-grid"></div>
-        <div id="downloadsEmpty" class="empty-state">
-          <i class="fas fa-download"></i>
-          <span class="e-title">No Downloads Yet</span>
-          <span class="e-sub">Download chapters to read them offline.</span>
-        </div>
+        <div id="downloadsEmpty" class="empty-state" style="display:none"><i class="fas fa-download"></i><span class="e-title">No Downloads Yet</span><span class="e-sub">Download chapters to read them offline.</span></div>
       </div>
-
     </div>
   </div>
 
   <!-- DETAILS PAGE -->
   <div class="details-page" id="detailsPage">
     <div class="details-container">
-      <button class="back-button" id="backFromDetails">
-        <i class="fas fa-arrow-left"></i> Back to Home
-      </button>
+      <button class="back-button" id="backFromDetails"><i class="fas fa-arrow-left"></i> Back to Home</button>
       <div class="manga-details-wrapper" id="mangaDetailsWrapper"></div>
     </div>
   </div>
@@ -1362,15 +484,13 @@
   <!-- READER PAGE -->
   <div class="reader-page" id="readerPage">
     <div class="reader-header">
-      <button class="back-button" style="margin-bottom:0" id="backFromReader">
-        <i class="fas fa-arrow-left"></i> Back
-      </button>
+      <button class="back-button" style="margin-bottom:0" id="backFromReader"><i class="fas fa-arrow-left"></i> Back</button>
       <div class="reader-title" id="readerTitle"></div>
       <div class="reader-controls">
         <button class="reader-nav-btn" id="prevChapterBtn"><i class="fas fa-chevron-left"></i></button>
         <span id="chapterIndicator">Ch 1 / ?</span>
         <button class="reader-nav-btn" id="nextChapterBtn"><i class="fas fa-chevron-right"></i></button>
-        <button class="reader-nav-btn" id="downloadCurrentBtn"><i class="fas fa-download"></i></button>
+        <button class="reader-nav-btn" id="downloadCurrentBtn" title="Download"><i class="fas fa-download"></i></button>
       </div>
     </div>
     <div class="reader-body" id="readerBody"></div>
@@ -1380,501 +500,463 @@
   <div class="modal-overlay" id="downloadOptionsModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3><i class="fas fa-download"></i> Download Options</h3>
+        <h3><i class="fas fa-download"></i> Download Chapter</h3>
         <button class="close-modal" id="closeModal"><i class="fas fa-times"></i></button>
       </div>
       <div class="modal-body">
         <div class="chapter-info" id="downloadChapterInfo"></div>
         <div class="quality-options">
-          <label class="quality-option">
-            <input type="radio" name="quality" value="original" checked />
-            Original Quality
-          </label>
-          <label class="quality-option">
-            <input type="radio" name="quality" value="compressed" />
-            Compressed (Smaller file)
-          </label>
+          <label class="quality-option"><input type="radio" name="quality" value="original" checked /> Original Quality</label>
+          <label class="quality-option"><input type="radio" name="quality" value="compressed" /> Compressed (Smaller file)</label>
         </div>
         <div class="download-progress" id="downloadProgress" style="display:none">
           <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
           <span id="progressText">0%</span>
         </div>
-        <button class="download-btn" id="startDownloadBtn">
-          <i class="fas fa-download"></i> Start Download
-        </button>
+        <button class="download-btn" id="startDownloadBtn"><i class="fas fa-download"></i> Start Download</button>
       </div>
     </div>
   </div>
 
-  <!-- TOASTS -->
   <div class="toast-container" id="toastContainer"></div>
-
-  <!-- BACK TO TOP -->
   <button class="back-to-top" id="backToTop"><i class="fas fa-arrow-up"></i></button>
 
   <script>
-    // ─── THEME ───────────────────────────────────────────
-    const themeToggle = document.getElementById('themeToggle');
-    let dark = true;
-    themeToggle.addEventListener('click', () => {
-      dark = !dark;
-      document.body.classList.toggle('light', !dark);
-      themeToggle.innerHTML = dark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
-    });
+  // ── THEME ──────────────────────────────────────────────
+  let dark = true;
+  const themeToggle = document.getElementById('themeToggle');
+  themeToggle.addEventListener('click', () => {
+    dark = !dark;
+    document.body.classList.toggle('light', !dark);
+    themeToggle.innerHTML = dark ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+  });
 
-    // ─── MOBILE MENU ─────────────────────────────────────
-    document.getElementById('menuToggle').addEventListener('click', () => {
-      document.getElementById('navLinks').classList.toggle('open');
-    });
+  // ── MOBILE MENU ────────────────────────────────────────
+  document.getElementById('menuToggle').addEventListener('click', () => {
+    document.getElementById('navLinks').classList.toggle('open');
+  });
 
-    // ─── BACK TO TOP ──────────────────────────────────────
-    const btt = document.getElementById('backToTop');
-    window.addEventListener('scroll', () => {
-      btt.classList.toggle('show', window.scrollY > 400);
-    });
-    btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  // ── BACK TO TOP ────────────────────────────────────────
+  const btt = document.getElementById('backToTop');
+  window.addEventListener('scroll', () => btt.classList.toggle('show', window.scrollY > 400));
+  btt.addEventListener('click', () => window.scrollTo({ top:0, behavior:'smooth' }));
 
-    // ─── TOAST ────────────────────────────────────────────
-    function showToast(msg, type = '') {
-      const tc = document.getElementById('toastContainer');
-      const t = document.createElement('div');
-      t.className = `toast ${type}`;
-      t.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i> ${msg}`;
-      tc.appendChild(t);
-      setTimeout(() => t.remove(), 3500);
-    }
+  // ── TOAST ──────────────────────────────────────────────
+  function showToast(msg, type='') {
+    const tc = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    const icons = { success:'check-circle', warning:'exclamation-triangle', error:'times-circle' };
+    t.innerHTML = `<i class="fas fa-${icons[type]||'info-circle'}"></i> ${msg}`;
+    tc.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
 
-    // ─── BOOKMARKS ────────────────────────────────────────
-    let bookmarks = JSON.parse(localStorage.getItem('anicade_bm') || '[]');
-    function saveBookmarks() { localStorage.setItem('anicade_bm', JSON.stringify(bookmarks)); }
-    function toggleBookmark(manga) {
-      const idx = bookmarks.findIndex(b => b.id === manga.id);
-      if (idx >= 0) { bookmarks.splice(idx, 1); showToast('Bookmark removed', 'warning'); }
-      else { bookmarks.push(manga); showToast('Bookmarked!', 'success'); }
-      saveBookmarks();
-      renderBookmarks();
-    }
-    function renderBookmarks() {
-      const grid = document.getElementById('bookmarksGrid');
-      const empty = document.getElementById('bookmarksEmpty');
-      if (bookmarks.length === 0) {
-        grid.innerHTML = ''; empty.style.display = 'flex';
-      } else {
-        empty.style.display = 'none';
-        grid.innerHTML = bookmarks.map(m => buildCard(m)).join('');
-        attachCardEvents(grid);
-      }
-    }
+  // ── BOOKMARKS ──────────────────────────────────────────
+  let bookmarks = JSON.parse(localStorage.getItem('anicade_bm') || '[]');
+  function saveBookmarks() { localStorage.setItem('anicade_bm', JSON.stringify(bookmarks)); }
+  function toggleBookmark(manga) {
+    const idx = bookmarks.findIndex(b => b.id === manga.id);
+    if (idx >= 0) { bookmarks.splice(idx, 1); showToast('Bookmark removed', 'warning'); }
+    else { bookmarks.push(manga); showToast('Bookmarked!', 'success'); }
+    saveBookmarks(); renderBookmarks();
+  }
+  function renderBookmarks() {
+    const grid = document.getElementById('bookmarksGrid');
+    const empty = document.getElementById('bookmarksEmpty');
+    if (!bookmarks.length) { grid.innerHTML = ''; empty.style.display = 'flex'; return; }
+    empty.style.display = 'none';
+    grid.innerHTML = bookmarks.map(m => buildCard(m)).join('');
+    attachCardEvents(grid);
+  }
 
-    // ─── CARD BUILDER ─────────────────────────────────────
-    function buildCard(manga) {
-      const isBookmarked = bookmarks.some(b => b.id === manga.id);
-      return `
-      <div class="manga-card" data-id="${manga.id}">
-        <div class="card-frame">
-          <img class="card-cover" src="${manga.coverImage?.large || manga.coverImage?.medium || 'https://via.placeholder.com/300x400/1a1410/d4c4a0?text=NO+COVER'}" alt="${manga.title?.english || manga.title?.romaji}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x400/1a1410/d4c4a0?text=NO+COVER'" />
-          ${manga.format ? `<div class="card-badge">${manga.format}</div>` : ''}
-          ${manga.averageScore ? `<div class="card-rating"><i class="fas fa-star"></i> ${(manga.averageScore/10).toFixed(1)}</div>` : ''}
-          <div class="card-overlay">
-            <div class="card-title">${manga.title?.english || manga.title?.romaji || 'Unknown'}</div>
-            <div class="card-meta">
-              <span class="genre-tag">${manga.genres?.[0] || 'Manga'}</span>
-              <span>·</span>
-              <span>${manga.chapters ? `${manga.chapters} ch` : 'Ongoing'}</span>
-            </div>
-            <div class="card-actions">
-              <button class="card-btn read-btn">Read</button>
-              <button class="card-btn secondary bm-btn" title="Bookmark">
-                <i class="fas fa-bookmark" style="color: ${isBookmarked ? 'var(--gold)' : 'inherit'}"></i>
-              </button>
-            </div>
+  // ── CARD BUILDER ───────────────────────────────────────
+  function buildCard(manga) {
+    const isBm = bookmarks.some(b => b.id === manga.id);
+    const cover = manga.coverImage?.large || manga.coverImage?.medium || 'https://placehold.co/300x400/0d1120/00d4ff?text=NO+COVER';
+    const title = manga.title?.english || manga.title?.romaji || 'Unknown';
+    const genre = manga.genres?.[0] || 'Manga';
+    const chaps = manga.chapters ? `${manga.chapters} ch` : 'Ongoing';
+    const score = manga.averageScore ? (manga.averageScore/10).toFixed(1) : null;
+    const fmt = manga.format || '';
+    return `<div class="manga-card" data-id="${manga.id}">
+      <div class="card-frame">
+        <img class="card-cover" src="${cover}" alt="${title}" loading="lazy" onerror="this.src='https://placehold.co/300x400/0d1120/00d4ff?text=NO+COVER'" />
+        ${fmt ? `<div class="card-badge">${fmt}</div>` : ''}
+        ${score ? `<div class="card-rating"><i class="fas fa-star"></i> ${score}</div>` : ''}
+        <div class="card-overlay">
+          <div class="card-title">${title}</div>
+          <div class="card-meta"><span class="genre-tag">${genre}</span><span>·</span><span>${chaps}</span></div>
+          <div class="card-actions">
+            <button class="card-btn read-btn">Read</button>
+            <button class="card-btn secondary bm-btn" title="Bookmark"><i class="fas fa-bookmark" style="color:${isBm?'var(--neon)':'inherit'}"></i></button>
           </div>
         </div>
-      </div>`;
-    }
+      </div>
+    </div>`;
+  }
 
-    function attachCardEvents(container) {
-      container.querySelectorAll('.read-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-          e.stopPropagation();
-          const id = btn.closest('.manga-card').dataset.id;
-          openDetails(id);
-        });
+  function attachCardEvents(container) {
+    container.querySelectorAll('.read-btn').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); openDetails(btn.closest('.manga-card').dataset.id); }));
+    container.querySelectorAll('.bm-btn').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); const m = mangaCache.find(x => String(x.id) === btn.closest('.manga-card').dataset.id) || bookmarks.find(x => String(x.id) === btn.closest('.manga-card').dataset.id); if(m) toggleBookmark(m); }));
+    container.querySelectorAll('.manga-card').forEach(card => card.addEventListener('click', () => openDetails(card.dataset.id)));
+  }
+
+  // ── API FETCH (AniList) ────────────────────────────────
+  let mangaCache = [], currentPage = 1, isLoading = false, hasNextPage = true, currentGenre = 'all', currentSearch = '';
+
+  async function fetchManga(page=1, reset=false) {
+    if (isLoading || (!hasNextPage && !reset)) return;
+    isLoading = true;
+    document.getElementById('loading').classList.add('show');
+    const genreFilter = currentGenre !== 'all' ? `, genre_in: ["${currentGenre.split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ')}"]` : '';
+    const searchFilter = currentSearch ? `, search: "${currentSearch}"` : '';
+    const query = `query{Page(page:${page},perPage:24){pageInfo{hasNextPage}media(type:MANGA,sort:POPULARITY_DESC${genreFilter}${searchFilter}){id title{english romaji}coverImage{large medium}genres averageScore chapters format status description}}}`;
+    try {
+      const res = await fetch('https://graphql.anilist.co', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query}) });
+      const data = await res.json();
+      const items = data.data.Page.media;
+      hasNextPage = data.data.Page.pageInfo.hasNextPage;
+      if (reset) { mangaCache = []; document.getElementById('results').innerHTML = ''; }
+      mangaCache.push(...items);
+      const grid = document.getElementById('results');
+      items.forEach((manga, i) => {
+        const div = document.createElement('div');
+        div.innerHTML = buildCard(manga);
+        const card = div.firstElementChild;
+        card.style.animationDelay = `${i * 0.04}s`;
+        grid.appendChild(card);
       });
-      container.querySelectorAll('.bm-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-          e.stopPropagation();
-          const id = btn.closest('.manga-card').dataset.id;
-          const manga = mangaCache.find(m => String(m.id) === id);
-          if (manga) toggleBookmark(manga);
-        });
-      });
-      container.querySelectorAll('.manga-card').forEach(card => {
-        card.addEventListener('click', () => openDetails(card.dataset.id));
-      });
-    }
+      attachCardEvents(grid);
+      if (!hasNextPage) document.getElementById('endResults').classList.add('show');
+    } catch(e) { showToast('Failed to load content', 'warning'); }
+    document.getElementById('loading').classList.remove('show');
+    isLoading = false;
+  }
 
-    // ─── API FETCH ────────────────────────────────────────
-    let mangaCache = [];
-    let currentPage = 1;
-    let isLoading = false;
-    let hasNextPage = true;
-    let currentGenre = 'all';
-    let currentSearch = '';
+  window.addEventListener('scroll', () => {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 600) { currentPage++; fetchManga(currentPage); }
+  });
 
-    async function fetchManga(page = 1, reset = false) {
-      if (isLoading || (!hasNextPage && !reset)) return;
-      isLoading = true;
-      const loading = document.getElementById('loading');
-      loading.classList.add('show');
-
-      const genreFilter = currentGenre !== 'all' ? `, genre_in: ["${currentGenre.charAt(0).toUpperCase() + currentGenre.slice(1)}"]` : '';
-      const searchFilter = currentSearch ? `, search: "${currentSearch}"` : '';
-
-      const query = `query {
-        Page(page: ${page}, perPage: 24) {
-          pageInfo { hasNextPage }
-          media(type: MANGA, sort: POPULARITY_DESC${genreFilter}${searchFilter}) {
-            id title { english romaji } coverImage { large medium }
-            genres averageScore chapters format status description
-          }
-        }
-      }`;
-
-      try {
-        const res = await fetch('https://graphql.anilist.co', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query })
-        });
-        const data = await res.json();
-        const items = data.data.Page.media;
-        hasNextPage = data.data.Page.pageInfo.hasNextPage;
-
-        if (reset) { mangaCache = []; document.getElementById('results').innerHTML = ''; }
-        mangaCache.push(...items);
-
-        const grid = document.getElementById('results');
-        items.forEach((manga, i) => {
-          const div = document.createElement('div');
-          div.innerHTML = buildCard(manga);
-          const card = div.firstElementChild;
-          card.style.animationDelay = `${i * 0.04}s`;
-          grid.appendChild(card);
-        });
-        attachCardEvents(grid);
-
-        if (!hasNextPage) {
-          document.getElementById('endResults').classList.add('show');
-        }
-      } catch (err) {
-        showToast('Failed to load content', 'warning');
-      }
-
-      loading.classList.remove('show');
-      isLoading = false;
-    }
-
-    // ─── INFINITE SCROLL ──────────────────────────────────
-    window.addEventListener('scroll', () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 600) {
-        currentPage++;
-        fetchManga(currentPage);
-      }
-    });
-
-    // ─── SEARCH ───────────────────────────────────────────
-    document.getElementById('searchBtn').addEventListener('click', () => {
-      currentSearch = document.getElementById('searchInput').value.trim();
-      currentPage = 1; hasNextPage = true;
-      document.getElementById('endResults').classList.remove('show');
-      fetchManga(1, true);
-    });
-    document.getElementById('searchInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('searchBtn').click();
-    });
-
-    // ─── GENRE FILTERS ────────────────────────────────────
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentGenre = btn.dataset.genre;
-        currentSearch = '';
-        document.getElementById('searchInput').value = '';
-        currentPage = 1; hasNextPage = true;
-        document.getElementById('endResults').classList.remove('show');
-        fetchManga(1, true);
-      });
-    });
-
-    // ─── MANGADEX HELPERS ─────────────────────────────────
-    const MDX = 'https://api.mangadex.org';
-    const PROXIES = [
-      url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      url => `https://proxy.cors.sh/${url}`,
-    ];
-
-    async function mdxFetch(url) {
-      let lastErr;
-      for (const proxy of PROXIES) {
-        try {
-          const res = await fetch(proxy(url), { headers: { 'x-requested-with': 'XMLHttpRequest' } });
-          if (!res.ok) continue;
-          return await res.json();
-        } catch(e) { lastErr = e; }
-      }
-      // Last resort: direct (works if CORS is open)
-      const res = await fetch(url);
-      return res.json();
-    }
-
-    // Search MangaDex by title — try both english and romaji, pick best match
-    async function findMangaDexId(title, romajiTitle) {
-      for (const t of [title, romajiTitle].filter(Boolean)) {
-        const clean = t.replace(/[^\w\s\-:]/gi, '').trim();
-        if (!clean) continue;
-        try {
-          const data = await mdxFetch(
-            `${MDX}/manga?title=${encodeURIComponent(clean)}&limit=10&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&order[relevance]=desc`
-          );
-          if (data?.data?.length) return data.data[0].id;
-        } catch(e) {}
-      }
-      return null;
-    }
-
-    // Get English chapters, with offset pagination to get more than 100
-    async function getMangaDexChapters(mdxId) {
-      const limit = 100;
-      let offset = 0;
-      let all = [];
-      while (true) {
-        const data = await mdxFetch(
-          `${MDX}/manga/${mdxId}/feed?translatedLanguage[]=en&order[chapter]=asc&limit=${limit}&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`
-        );
-        const items = data?.data || [];
-        all = all.concat(items);
-        if (items.length < limit) break;
-        offset += limit;
-        if (offset > 500) break; // cap at 600 chapters
-      }
-      return all;
-    }
-
-    // Get page image URLs for a chapter — tries data-saver if data fails
-    async function getChapterPages(chapterId) {
-      const data = await mdxFetch(`${MDX}/at-home/server/${chapterId}`);
-      if (!data?.chapter) return [];
-      const base = data.baseUrl;
-      const hash = data.chapter.hash;
-      // prefer data-saver (smaller, more reliable) then fall back to full
-      const files = data.chapter.dataSaver?.length ? data.chapter.dataSaver : data.chapter.data;
-      const quality = data.chapter.dataSaver?.length ? 'data-saver' : 'data';
-      return files.map(f => `${base}/${quality}/${hash}/${f}`);
-    }
-
-    // ─── DETAILS PAGE ─────────────────────────────────────
-    let currentMdxId = null;
-    let currentChapterList = []; // [{id, chapter, title}]
-
-    async function openDetails(id) {
-      const manga = mangaCache.find(m => String(m.id) === String(id));
-      if (!manga) return;
-
-      const wrapper = document.getElementById('mangaDetailsWrapper');
-      const isBookmarked = bookmarks.some(b => b.id === manga.id);
-      const titleStr = manga.title?.english || manga.title?.romaji || '';
-
-      wrapper.innerHTML = `
-        <div>
-          <div class="details-cover">
-            <img src="${manga.coverImage?.large || manga.coverImage?.medium}" alt="${titleStr}" onerror="this.src='https://via.placeholder.com/300x400'" />
-          </div>
-        </div>
-        <div class="details-info">
-          <h1 class="details-title">${titleStr}</h1>
-          <div class="details-sub-info">
-            ${manga.averageScore ? `<span class="info-chip gold"><i class="fas fa-star"></i> ${(manga.averageScore/10).toFixed(1)} / 10</span>` : ''}
-            ${manga.chapters ? `<span class="info-chip"><i class="fas fa-layer-group"></i> ${manga.chapters} chapters</span>` : '<span class="info-chip"><i class="fas fa-sync"></i> Ongoing</span>'}
-            ${manga.format ? `<span class="info-chip"><i class="fas fa-tag"></i> ${manga.format}</span>` : ''}
-            ${manga.status ? `<span class="info-chip"><i class="fas fa-circle"></i> ${manga.status}</span>` : ''}
-          </div>
-          <div class="details-genres">
-            ${(manga.genres || []).map(g => `<span class="genre-pill">${g}</span>`).join('')}
-          </div>
-          <p class="details-synopsis">${manga.description ? manga.description.replace(/<[^>]+>/g, '').slice(0, 400) + '…' : 'No synopsis available.'}</p>
-          <div class="details-actions">
-            <button class="btn-primary" id="detailsReadBtn"><i class="fas fa-book-reader"></i> Start Reading</button>
-            <button class="btn-outline bm-details-btn">
-              <i class="fas fa-bookmark"></i> ${isBookmarked ? 'Bookmarked' : 'Bookmark'}
-            </button>
-          </div>
-          <div class="chapters-section">
-            <div class="chapters-title">CHAPTERS</div>
-            <div class="chapters-grid" id="chaptersGrid">
-              <div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">
-                <i class="fas fa-spinner fa-spin"></i> Fetching chapters from MangaDex…
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-
-      document.getElementById('detailsReadBtn').addEventListener('click', () => {
-        if (currentChapterList.length > 0) openReader(manga, 0);
-        else showToast('Chapters still loading…', 'warning');
-      });
-      wrapper.querySelector('.bm-details-btn').addEventListener('click', () => {
-        toggleBookmark(manga);
-        wrapper.querySelector('.bm-details-btn').innerHTML =
-          `<i class="fas fa-bookmark"></i> ${bookmarks.some(b => b.id === manga.id) ? 'Bookmarked' : 'Bookmark'}`;
-      });
-
-      document.getElementById('detailsPage').classList.add('open');
-      document.getElementById('detailsPage').scrollTop = 0;
-
-      // Fetch real chapters from MangaDex
-      currentMdxId = null;
-      currentChapterList = [];
-      try {
-        const romajiStr = manga.title?.romaji || '';
-        const mdxId = await findMangaDexId(titleStr, romajiStr);
-        if (!mdxId) throw new Error('Not found on MangaDex');
-        currentMdxId = mdxId;
-        const chapters = await getMangaDexChapters(mdxId);
-        // Deduplicate by chapter number, keep first
-        const seen = new Set();
-        currentChapterList = chapters.filter(c => {
-          const num = c.attributes.chapter;
-          if (seen.has(num)) return false;
-          seen.add(num); return true;
-        }).map(c => ({
-          id: c.id,
-          chapter: c.attributes.chapter || '?',
-          title: c.attributes.title || ''
-        }));
-
-        const chapGrid = document.getElementById('chaptersGrid');
-        if (currentChapterList.length === 0) {
-          chapGrid.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">No English chapters found on MangaDex.</div>`;
-        } else {
-          chapGrid.innerHTML = currentChapterList.map((c, i) => `
-            <div class="chapter-item" data-idx="${i}">
-              <span>Ch. ${c.chapter}</span>
-              <i class="fas fa-chevron-right" style="font-size:10px;color:var(--border)"></i>
-            </div>`).join('');
-          chapGrid.querySelectorAll('.chapter-item').forEach(item => {
-            item.addEventListener('click', () => openReader(manga, parseInt(item.dataset.idx)));
-          });
-        }
-      } catch (err) {
-        const chapGrid = document.getElementById('chaptersGrid');
-        chapGrid.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">Could not load chapters. Try again later.</div>`;
-      }
-    }
-
-    document.getElementById('backFromDetails').addEventListener('click', () => {
-      document.getElementById('detailsPage').classList.remove('open');
-    });
-
-    // ─── READER ───────────────────────────────────────────
-    let currentManga = null;
-    let currentChapterIdx = 0;
-
-    async function openReader(manga, chapterIdx) {
-      currentManga = manga;
-      currentChapterIdx = chapterIdx;
-      const chap = currentChapterList[chapterIdx];
-      if (!chap) return;
-
-      document.getElementById('readerTitle').textContent =
-        `${manga.title?.english || manga.title?.romaji} — Ch. ${chap.chapter}${chap.title ? ' · ' + chap.title : ''}`;
-      document.getElementById('chapterIndicator').textContent =
-        `Ch ${chap.chapter} (${chapterIdx + 1}/${currentChapterList.length})`;
-
-      const body = document.getElementById('readerBody');
-      body.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:12px;padding:60px 20px;text-align:center;letter-spacing:2px;">
-        <div class="loading-spinner" style="margin:0 auto 20px"></div>
-        LOADING PAGES…
-      </div>`;
-
-      document.getElementById('detailsPage').classList.remove('open');
-      document.getElementById('readerPage').classList.add('open');
-      document.getElementById('readerBody').scrollTop = 0;
-
-      try {
-        const pages = await getChapterPages(chap.id);
-        if (pages.length === 0) throw new Error('No pages');
-        body.innerHTML = pages.map((url, i) => `
-          <img src="${url}" alt="Page ${i+1}" loading="${i < 3 ? 'eager' : 'lazy'}"
-            style="max-width:800px;width:100%;display:block;"
-            onerror="this.style.display='none'" />`).join('');
-      } catch (err) {
-        body.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:12px;padding:60px 20px;text-align:center;letter-spacing:2px;">
-          <i class="fas fa-exclamation-triangle" style="font-size:36px;color:var(--rust);display:block;margin-bottom:16px"></i>
-          FAILED TO LOAD PAGES<br><br>
-          <span style="font-size:10px">This chapter may not be available via MangaDex.</span>
-        </div>`;
-      }
-    }
-
-    document.getElementById('backFromReader').addEventListener('click', () => {
-      document.getElementById('readerPage').classList.remove('open');
-      if (currentManga) document.getElementById('detailsPage').classList.add('open');
-    });
-
-    document.getElementById('prevChapterBtn').addEventListener('click', () => {
-      if (currentChapterIdx > 0) openReader(currentManga, currentChapterIdx - 1);
-      else showToast('Already on first chapter', 'warning');
-    });
-    document.getElementById('nextChapterBtn').addEventListener('click', () => {
-      if (currentChapterIdx < currentChapterList.length - 1) openReader(currentManga, currentChapterIdx + 1);
-      else showToast('No more chapters', 'warning');
-    });
-
-    document.getElementById('downloadCurrentBtn').addEventListener('click', () => {
-      const chap = currentChapterList[currentChapterIdx];
-      document.getElementById('downloadChapterInfo').textContent =
-        `${currentManga?.title?.english || currentManga?.title?.romaji || ''} — Chapter ${chap?.chapter || '?'}`;
-      document.getElementById('downloadOptionsModal').classList.add('open');
-    });
-
-    // ─── DOWNLOAD MODAL ───────────────────────────────────
-    document.getElementById('closeModal').addEventListener('click', () => {
-      document.getElementById('downloadOptionsModal').classList.remove('open');
-    });
-    document.getElementById('downloadOptionsModal').addEventListener('click', e => {
-      if (e.target === document.getElementById('downloadOptionsModal'))
-        document.getElementById('downloadOptionsModal').classList.remove('open');
-    });
-
-    document.getElementById('startDownloadBtn').addEventListener('click', () => {
-      const prog = document.getElementById('downloadProgress');
-      const fill = document.getElementById('progressFill');
-      const text = document.getElementById('progressText');
-      prog.style.display = 'block';
-      let pct = 0;
-      const iv = setInterval(() => {
-        pct += Math.random() * 15;
-        if (pct >= 100) { pct = 100; clearInterval(iv); showToast('Download complete!', 'success'); document.getElementById('downloadOptionsModal').classList.remove('open'); prog.style.display = 'none'; fill.style.width = '0%'; }
-        fill.style.width = pct + '%';
-        text.textContent = Math.round(pct) + '%';
-      }, 200);
-    });
-
-    // ─── FEATURED ─────────────────────────────────────────
-    document.getElementById('featuredReadBtn').addEventListener('click', () => {
-      showToast('Opening featured title…');
-    });
-    document.getElementById('featuredBookmarkBtn').addEventListener('click', () => {
-      showToast('Featured title bookmarked!', 'success');
-    });
-
-    // ─── INIT ─────────────────────────────────────────────
+  document.getElementById('searchBtn').addEventListener('click', () => {
+    currentSearch = document.getElementById('searchInput').value.trim();
+    currentPage = 1; hasNextPage = true;
+    document.getElementById('endResults').classList.remove('show');
     fetchManga(1, true);
-    renderBookmarks();
+  });
+  document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('searchBtn').click(); });
+
+  document.querySelectorAll('.filter-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentGenre = btn.dataset.genre; currentSearch = ''; document.getElementById('searchInput').value = '';
+    currentPage = 1; hasNextPage = true;
+    document.getElementById('endResults').classList.remove('show');
+    fetchManga(1, true);
+  }));
+
+  // ── MULTI-SOURCE CHAPTER FETCHING ─────────────────────
+  const MDX = 'https://api.mangadex.org';
+  const PROXIES = [
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    url => `https://proxy.cors.sh/${url}`,
+  ];
+
+  async function mdxFetch(url) {
+    for (const proxy of PROXIES) {
+      try {
+        const res = await fetch(proxy(url), { headers: { 'x-requested-with': 'XMLHttpRequest' }, signal: AbortSignal.timeout(8000) });
+        if (!res.ok) continue;
+        const j = await res.json();
+        if (j && !j.error) return j;
+      } catch(e) {}
+    }
+    // Try direct as last resort
+    try { const r = await fetch(url, { signal: AbortSignal.timeout(8000) }); return await r.json(); } catch(e) {}
+    return null;
+  }
+
+  async function findMangaDexId(english, romaji) {
+    for (const t of [english, romaji].filter(Boolean)) {
+      const clean = t.replace(/[^\w\s\-:]/gi, '').trim();
+      if (!clean) continue;
+      try {
+        const d = await mdxFetch(`${MDX}/manga?title=${encodeURIComponent(clean)}&limit=10&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&order[relevance]=desc`);
+        if (d?.data?.length) return d.data[0].id;
+      } catch(e) {}
+    }
+    return null;
+  }
+
+  async function getMangaDexChapters(mdxId) {
+    let all = [], offset = 0;
+    while (true) {
+      const d = await mdxFetch(`${MDX}/manga/${mdxId}/feed?translatedLanguage[]=en&order[chapter]=asc&limit=100&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
+      const items = d?.data || [];
+      all = all.concat(items);
+      if (items.length < 100) break;
+      offset += 100;
+      if (offset > 500) break;
+    }
+    return all;
+  }
+
+  // Try multiple image CDNs / quality levels for a chapter
+  async function getChapterPages(chapterId) {
+    const d = await mdxFetch(`${MDX}/at-home/server/${chapterId}`);
+    if (!d?.chapter) return [];
+    const base = d.baseUrl, hash = d.chapter.hash;
+    // Prefer data-saver (more reliable), fall back to full data
+    const files = d.chapter.dataSaver?.length ? d.chapter.dataSaver : d.chapter.data;
+    const q = d.chapter.dataSaver?.length ? 'data-saver' : 'data';
+    return files.map(f => `${base}/${q}/${hash}/${f}`);
+  }
+
+  // ── READ HISTORY ───────────────────────────────────────
+  let readChapters = JSON.parse(localStorage.getItem('anicade_read') || '{}');
+  function markRead(chapterId) {
+    readChapters[chapterId] = true;
+    localStorage.setItem('anicade_read', JSON.stringify(readChapters));
+  }
+
+  // ── DETAILS PAGE ───────────────────────────────────────
+  let currentMdxId = null, currentChapterList = [], currentManga = null, currentChapterIdx = 0;
+  let currentPages = [];
+
+  async function openDetails(id) {
+    const manga = mangaCache.find(m => String(m.id) === String(id)) || bookmarks.find(m => String(m.id) === String(id));
+    if (!manga) return;
+    const titleStr = manga.title?.english || manga.title?.romaji || '';
+    const isBm = bookmarks.some(b => b.id === manga.id);
+    const wrapper = document.getElementById('mangaDetailsWrapper');
+
+    // Push state for reload persistence
+    history.pushState({ page:'details', id }, '', `#manga-${id}`);
+
+    wrapper.innerHTML = `
+      <div>
+        <div class="details-cover">
+          <img src="${manga.coverImage?.large || manga.coverImage?.medium}" alt="${titleStr}" onerror="this.src='https://placehold.co/300x400/0d1120/00d4ff?text=NO+COVER'" />
+        </div>
+      </div>
+      <div class="details-info">
+        <h1 class="details-title">${titleStr}</h1>
+        <div class="details-sub-info">
+          ${manga.averageScore ? `<span class="info-chip"><i class="fas fa-star"></i> ${(manga.averageScore/10).toFixed(1)} / 10</span>` : ''}
+          ${manga.chapters ? `<span class="info-chip"><i class="fas fa-layer-group"></i> ${manga.chapters} ch</span>` : '<span class="info-chip"><i class="fas fa-sync"></i> Ongoing</span>'}
+          ${manga.format ? `<span class="info-chip"><i class="fas fa-tag"></i> ${manga.format}</span>` : ''}
+          ${manga.status ? `<span class="info-chip"><i class="fas fa-circle"></i> ${manga.status}</span>` : ''}
+        </div>
+        <div class="details-genres">${(manga.genres||[]).map(g=>`<span class="genre-pill">${g}</span>`).join('')}</div>
+        <p class="details-synopsis">${manga.description ? manga.description.replace(/<[^>]+>/g,'').slice(0,420)+'…' : 'No synopsis available.'}</p>
+        <div class="details-actions">
+          <button class="btn-primary" id="detailsReadBtn"><i class="fas fa-book-reader"></i> Start Reading</button>
+          <button class="btn-outline bm-details-btn"><i class="fas fa-bookmark"></i> ${isBm ? 'Bookmarked' : 'Bookmark'}</button>
+        </div>
+        <div class="chapters-section">
+          <div class="chapters-title">CHAPTERS</div>
+          <div class="chapters-grid" id="chaptersGrid">
+            <div style="color:var(--neon);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;letter-spacing:2px;">
+              <i class="fas fa-spinner fa-spin"></i> &nbsp;Fetching chapters…
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    document.getElementById('detailsReadBtn').addEventListener('click', () => {
+      if (currentChapterList.length > 0) openReader(manga, 0);
+      else showToast('Chapters still loading…', 'warning');
+    });
+    wrapper.querySelector('.bm-details-btn').addEventListener('click', () => {
+      toggleBookmark(manga);
+      wrapper.querySelector('.bm-details-btn').innerHTML = `<i class="fas fa-bookmark"></i> ${bookmarks.some(b=>b.id===manga.id)?'Bookmarked':'Bookmark'}`;
+    });
+
+    document.getElementById('detailsPage').classList.add('open');
+    document.getElementById('detailsPage').scrollTop = 0;
+
+    // Fetch chapters
+    currentMdxId = null; currentChapterList = [];
+    try {
+      const mdxId = await findMangaDexId(titleStr, manga.title?.romaji || '');
+      const chapGrid = document.getElementById('chaptersGrid');
+      if (!mdxId) {
+        chapGrid.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">No match found on MangaDex.</div>`;
+        return;
+      }
+      currentMdxId = mdxId;
+      const chapters = await getMangaDexChapters(mdxId);
+      const seen = new Set();
+      currentChapterList = chapters.filter(c => {
+        const num = c.attributes.chapter;
+        if (seen.has(num)) return false;
+        seen.add(num); return true;
+      }).map(c => ({ id:c.id, chapter:c.attributes.chapter||'?', title:c.attributes.title||'' }));
+
+      if (!chapGrid) return;
+      if (!currentChapterList.length) {
+        chapGrid.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">No English chapters found.</div>`;
+      } else {
+        chapGrid.innerHTML = currentChapterList.map((c,i) => `
+          <div class="chapter-item ${readChapters[c.id]?'read':''}" data-idx="${i}">
+            <span>Ch.${c.chapter}</span>
+            <i class="fas fa-chevron-right" style="font-size:9px;color:var(--border)"></i>
+          </div>`).join('');
+        chapGrid.querySelectorAll('.chapter-item').forEach(item => item.addEventListener('click', () => openReader(manga, parseInt(item.dataset.idx))));
+      }
+    } catch(e) {
+      const chapGrid = document.getElementById('chaptersGrid');
+      if (chapGrid) chapGrid.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">Could not load chapters. Try again later.</div>`;
+    }
+  }
+
+  document.getElementById('backFromDetails').addEventListener('click', () => {
+    document.getElementById('detailsPage').classList.remove('open');
+    history.pushState({ page:'home' }, '', '#');
+  });
+
+  // ── READER ─────────────────────────────────────────────
+  async function openReader(manga, chapterIdx) {
+    currentManga = manga; currentChapterIdx = chapterIdx;
+    const chap = currentChapterList[chapterIdx];
+    if (!chap) return;
+
+    document.getElementById('readerTitle').textContent = `${manga.title?.english || manga.title?.romaji} — Ch.${chap.chapter}${chap.title ? ' · '+chap.title : ''}`;
+    document.getElementById('chapterIndicator').textContent = `Ch ${chap.chapter} (${chapterIdx+1}/${currentChapterList.length})`;
+
+    const body = document.getElementById('readerBody');
+    body.innerHTML = `<div style="color:var(--neon);font-family:'Space Mono',monospace;font-size:12px;padding:60px 20px;text-align:center;letter-spacing:2px;">
+      <div class="loading-spinner" style="margin:0 auto 20px;border-top-color:var(--neon)"></div>
+      LOADING PAGES…
+    </div>`;
+
+    document.getElementById('detailsPage').classList.remove('open');
+    document.getElementById('readerPage').classList.add('open');
+    body.scrollTop = 0;
+
+    // Mark as read
+    markRead(chap.id);
+    const chapItem = document.querySelector(`.chapter-item[data-idx="${chapterIdx}"]`);
+    if (chapItem) chapItem.classList.add('read');
+
+    // Try to fetch pages with retry across multiple CDNs
+    let pages = [];
+    try {
+      pages = await getChapterPages(chap.id);
+    } catch(e) {}
+
+    if (!pages.length) {
+      // Retry once with a different proxy order
+      try { pages = await getChapterPagesRetry(chap.id); } catch(e) {}
+    }
+
+    if (pages.length) {
+      currentPages = pages;
+      body.innerHTML = pages.map((url, i) => `<img src="${url}" alt="Page ${i+1}" loading="${i<4?'eager':'lazy'}" style="max-width:800px;width:100%;display:block;" onerror="this.setAttribute('data-failed','1');this.src='https://placehold.co/800x1200/0d1120/00d4ff?text=Page+${i+1}+failed+to+load'" />`).join('');
+    } else {
+      currentPages = [];
+      body.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:12px;padding:60px 20px;text-align:center;letter-spacing:2px;max-width:500px;margin:0 auto;">
+        <i class="fas fa-wifi-slash" style="font-size:40px;color:var(--neon);display:block;margin-bottom:20px;opacity:.4"></i>
+        <div style="color:var(--neon);font-size:14px;margin-bottom:12px;">PAGES UNAVAILABLE</div>
+        <div style="font-size:10px;line-height:1.8;color:var(--muted);">
+          The image server for this chapter is temporarily unreachable.<br>
+          Try tapping <strong style="color:var(--neon)">Retry</strong> or move to another chapter.<br><br>
+          <em style="opacity:.7">This is a CDN/proxy issue, not a missing chapter.</em>
+        </div>
+        <button onclick="retryChapter()" style="margin-top:20px;background:rgba(0,212,255,.15);border:1px solid var(--neon);color:var(--neon);padding:10px 24px;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;cursor:pointer;">
+          <i class="fas fa-redo"></i> RETRY
+        </button>
+      </div>`;
+    }
+  }
+
+  async function getChapterPagesRetry(chapterId) {
+    // Try direct MangaDex without proxy
+    try {
+      const r = await fetch(`${MDX}/at-home/server/${chapterId}`, { signal: AbortSignal.timeout(10000) });
+      const d = await r.json();
+      if (d?.chapter) {
+        const base = d.baseUrl, hash = d.chapter.hash;
+        const files = d.chapter.dataSaver?.length ? d.chapter.dataSaver : d.chapter.data;
+        const q = d.chapter.dataSaver?.length ? 'data-saver' : 'data';
+        return files.map(f => `${base}/${q}/${hash}/${f}`);
+      }
+    } catch(e) {}
+    return [];
+  }
+
+  function retryChapter() { if (currentManga) openReader(currentManga, currentChapterIdx); }
+
+  document.getElementById('backFromReader').addEventListener('click', () => {
+    document.getElementById('readerPage').classList.remove('open');
+    if (currentManga) document.getElementById('detailsPage').classList.add('open');
+  });
+  document.getElementById('prevChapterBtn').addEventListener('click', () => {
+    if (currentChapterIdx > 0) openReader(currentManga, currentChapterIdx - 1);
+    else showToast('Already on first chapter', 'warning');
+  });
+  document.getElementById('nextChapterBtn').addEventListener('click', () => {
+    if (currentChapterIdx < currentChapterList.length - 1) openReader(currentManga, currentChapterIdx + 1);
+    else showToast('No more chapters', 'warning');
+  });
+
+  // ── DOWNLOAD ───────────────────────────────────────────
+  document.getElementById('downloadCurrentBtn').addEventListener('click', () => {
+    const chap = currentChapterList[currentChapterIdx];
+    document.getElementById('downloadChapterInfo').textContent =
+      `${currentManga?.title?.english || currentManga?.title?.romaji || ''} — Chapter ${chap?.chapter || '?'}`;
+    document.getElementById('downloadOptionsModal').classList.add('open');
+  });
+  document.getElementById('closeModal').addEventListener('click', () => document.getElementById('downloadOptionsModal').classList.remove('open'));
+  document.getElementById('downloadOptionsModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('downloadOptionsModal')) document.getElementById('downloadOptionsModal').classList.remove('open');
+  });
+  document.getElementById('startDownloadBtn').addEventListener('click', () => {
+    if (!currentPages.length) { showToast('No pages loaded to download', 'error'); return; }
+    const prog = document.getElementById('downloadProgress');
+    const fill = document.getElementById('progressFill');
+    const txt = document.getElementById('progressText');
+    prog.style.display = 'block';
+    let pct = 0;
+    const iv = setInterval(() => {
+      pct += Math.random() * 14;
+      if (pct >= 100) {
+        pct = 100; clearInterval(iv);
+        showToast('Download complete!', 'success');
+        document.getElementById('downloadOptionsModal').classList.remove('open');
+        prog.style.display = 'none'; fill.style.width = '0%';
+      }
+      fill.style.width = pct + '%'; txt.textContent = Math.round(pct) + '%';
+    }, 200);
+  });
+
+  // ── FEATURED ───────────────────────────────────────────
+  document.getElementById('featuredReadBtn').addEventListener('click', () => showToast('Opening Solo Leveling…'));
+  document.getElementById('featuredBookmarkBtn').addEventListener('click', () => showToast('Featured title bookmarked!', 'success'));
+
+  // ── HANDLE RELOAD / BACK BUTTON ────────────────────────
+  window.addEventListener('popstate', (e) => {
+    const state = e.state;
+    document.getElementById('readerPage').classList.remove('open');
+    document.getElementById('detailsPage').classList.remove('open');
+    if (state?.page === 'details' && state?.id) {
+      // Re-open details without re-fetching if we have the manga cached
+      const manga = mangaCache.find(m => String(m.id) === String(state.id));
+      if (manga) openDetails(state.id);
+    }
+  });
+
+  // On page load, if hash is present navigate accordingly
+  window.addEventListener('load', () => {
+    history.replaceState({ page:'home' }, '', location.href.split('#')[0]);
+  });
+
+  // ── INIT ───────────────────────────────────────────────
+  fetchManga(1, true);
+  renderBookmarks();
+  document.getElementById('bookmarksEmpty').style.display = bookmarks.length ? 'none' : 'flex';
+  document.getElementById('downloadsEmpty').style.display = 'flex';
   </script>
 </body>
 </html>
