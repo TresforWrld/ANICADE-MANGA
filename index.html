@@ -1630,22 +1630,59 @@
       });
     });
 
+    // ─── MANGADEX HELPERS ─────────────────────────────────
+    const MDX = 'https://api.mangadex.org';
+    const MDX_PROXY = 'https://corsproxy.io/?';
+
+    async function mdxFetch(url) {
+      const res = await fetch(MDX_PROXY + encodeURIComponent(url));
+      return res.json();
+    }
+
+    // Search MangaDex by title, return first match ID
+    async function findMangaDexId(title) {
+      const clean = title.replace(/[^\w\s]/gi, '').trim();
+      const data = await mdxFetch(`${MDX}/manga?title=${encodeURIComponent(clean)}&limit=5&contentRating[]=safe&contentRating[]=suggestive`);
+      return data?.data?.[0]?.id || null;
+    }
+
+    // Get all English chapters for a MangaDex manga ID
+    async function getMangaDexChapters(mdxId) {
+      const data = await mdxFetch(
+        `${MDX}/manga/${mdxId}/feed?translatedLanguage[]=en&order[chapter]=asc&limit=100&contentRating[]=safe&contentRating[]=suggestive`
+      );
+      return data?.data || [];
+    }
+
+    // Get page image URLs for a chapter
+    async function getChapterPages(chapterId) {
+      const data = await mdxFetch(`${MDX}/at-home/server/${chapterId}`);
+      if (!data?.chapter) return [];
+      const base = data.baseUrl;
+      const hash = data.chapter.hash;
+      return data.chapter.data.map(f => `${base}/data/${hash}/${f}`);
+    }
+
     // ─── DETAILS PAGE ─────────────────────────────────────
+    let currentMdxId = null;
+    let currentChapterList = []; // [{id, chapter, title}]
+
     async function openDetails(id) {
       const manga = mangaCache.find(m => String(m.id) === String(id));
       if (!manga) return;
 
       const wrapper = document.getElementById('mangaDetailsWrapper');
       const isBookmarked = bookmarks.some(b => b.id === manga.id);
+      const titleStr = manga.title?.english || manga.title?.romaji || '';
 
       wrapper.innerHTML = `
         <div>
           <div class="details-cover">
-            <img src="${manga.coverImage?.large || manga.coverImage?.medium}" alt="${manga.title?.english || manga.title?.romaji}" onerror="this.src='https://via.placeholder.com/300x400'" />
+            <img src="${manga.coverImage?.large || manga.coverImage?.medium}" alt="${titleStr}" onerror="this.src='https://via.placeholder.com/300x400'" />
           </div>
         </div>
         <div class="details-info">
-          <h1 class="details-title">${manga.title?.english || manga.title?.romaji}</h1>
+          <h1 class="details-title">${titleStr}</h1>
           <div class="details-sub-info">
             ${manga.averageScore ? `<span class="info-chip gold"><i class="fas fa-star"></i> ${(manga.averageScore/10).toFixed(1)} / 10</span>` : ''}
             ${manga.chapters ? `<span class="info-chip"><i class="fas fa-layer-group"></i> ${manga.chapters} chapters</span>` : '<span class="info-chip"><i class="fas fa-sync"></i> Ongoing</span>'}
@@ -1665,37 +1702,64 @@
           <div class="chapters-section">
             <div class="chapters-title">CHAPTERS</div>
             <div class="chapters-grid" id="chaptersGrid">
-              <div style="color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; padding: 20px; grid-column: 1/-1;">
-                <i class="fas fa-spinner fa-spin"></i> Loading chapters…
+              <div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">
+                <i class="fas fa-spinner fa-spin"></i> Fetching chapters from MangaDex…
               </div>
             </div>
           </div>
         </div>
       `;
 
-      document.getElementById('detailsReadBtn').addEventListener('click', () => openReader(manga, 1));
+      document.getElementById('detailsReadBtn').addEventListener('click', () => {
+        if (currentChapterList.length > 0) openReader(manga, 0);
+        else showToast('Chapters still loading…', 'warning');
+      });
       wrapper.querySelector('.bm-details-btn').addEventListener('click', () => {
         toggleBookmark(manga);
-        wrapper.querySelector('.bm-details-btn').innerHTML = `<i class="fas fa-bookmark"></i> ${bookmarks.some(b => b.id === manga.id) ? 'Bookmarked' : 'Bookmark'}`;
+        wrapper.querySelector('.bm-details-btn').innerHTML =
+          `<i class="fas fa-bookmark"></i> ${bookmarks.some(b => b.id === manga.id) ? 'Bookmarked' : 'Bookmark'}`;
       });
 
       document.getElementById('detailsPage').classList.add('open');
       document.getElementById('detailsPage').scrollTop = 0;
-      window.scrollTo(0, 0);
 
-      // Mock chapters
-      const total = manga.chapters || 12;
-      const chapGrid = document.getElementById('chaptersGrid');
-      chapGrid.innerHTML = Array.from({ length: Math.min(total, 60) }, (_, i) => `
-        <div class="chapter-item" data-ch="${i+1}">
-          <span>Ch. ${i+1}</span><i class="fas fa-chevron-right" style="font-size:10px; color:var(--border)"></i>
-        </div>`).join('');
-      chapGrid.querySelectorAll('.chapter-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const ch = parseInt(item.dataset.ch);
-          openReader(manga, ch);
-        });
-      });
+      // Fetch real chapters from MangaDex
+      currentMdxId = null;
+      currentChapterList = [];
+      try {
+        const mdxId = await findMangaDexId(titleStr);
+        if (!mdxId) throw new Error('Not found on MangaDex');
+        currentMdxId = mdxId;
+        const chapters = await getMangaDexChapters(mdxId);
+        // Deduplicate by chapter number, keep first
+        const seen = new Set();
+        currentChapterList = chapters.filter(c => {
+          const num = c.attributes.chapter;
+          if (seen.has(num)) return false;
+          seen.add(num); return true;
+        }).map(c => ({
+          id: c.id,
+          chapter: c.attributes.chapter || '?',
+          title: c.attributes.title || ''
+        }));
+
+        const chapGrid = document.getElementById('chaptersGrid');
+        if (currentChapterList.length === 0) {
+          chapGrid.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">No English chapters found on MangaDex.</div>`;
+        } else {
+          chapGrid.innerHTML = currentChapterList.map((c, i) => `
+            <div class="chapter-item" data-idx="${i}">
+              <span>Ch. ${c.chapter}</span>
+              <i class="fas fa-chevron-right" style="font-size:10px;color:var(--border)"></i>
+            </div>`).join('');
+          chapGrid.querySelectorAll('.chapter-item').forEach(item => {
+            item.addEventListener('click', () => openReader(manga, parseInt(item.dataset.idx)));
+          });
+        }
+      } catch (err) {
+        const chapGrid = document.getElementById('chaptersGrid');
+        chapGrid.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">Could not load chapters. Try again later.</div>`;
+      }
     }
 
     document.getElementById('backFromDetails').addEventListener('click', () => {
@@ -1704,23 +1768,43 @@
 
     // ─── READER ───────────────────────────────────────────
     let currentManga = null;
-    let currentChapter = 1;
+    let currentChapterIdx = 0;
 
-    function openReader(manga, chapter) {
+    async function openReader(manga, chapterIdx) {
       currentManga = manga;
-      currentChapter = chapter;
-      document.getElementById('readerTitle').textContent = `${manga.title?.english || manga.title?.romaji} — Chapter ${chapter}`;
-      document.getElementById('chapterIndicator').textContent = `Ch ${chapter} / ${manga.chapters || '?'}`;
+      currentChapterIdx = chapterIdx;
+      const chap = currentChapterList[chapterIdx];
+      if (!chap) return;
+
+      document.getElementById('readerTitle').textContent =
+        `${manga.title?.english || manga.title?.romaji} — Ch. ${chap.chapter}${chap.title ? ' · ' + chap.title : ''}`;
+      document.getElementById('chapterIndicator').textContent =
+        `Ch ${chap.chapter} (${chapterIdx + 1}/${currentChapterList.length})`;
 
       const body = document.getElementById('readerBody');
-      body.innerHTML = `<div style="color: var(--paper); font-family: 'Rajdhani',sans-serif; padding: 60px 20px; text-align:center; font-size:16px; letter-spacing:1px;">
-        <i class="fas fa-book-open" style="font-size:48px; color:var(--rust); margin-bottom:20px; display:block"></i>
-        <strong>Chapter ${chapter} loaded.</strong><br><br>
-        <span style="color:var(--muted); font-size:13px;">Chapter images would appear here once connected to a manga source API.</span>
+      body.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:12px;padding:60px 20px;text-align:center;letter-spacing:2px;">
+        <div class="loading-spinner" style="margin:0 auto 20px"></div>
+        LOADING PAGES…
       </div>`;
 
       document.getElementById('detailsPage').classList.remove('open');
       document.getElementById('readerPage').classList.add('open');
+      document.getElementById('readerBody').scrollTop = 0;
+
+      try {
+        const pages = await getChapterPages(chap.id);
+        if (pages.length === 0) throw new Error('No pages');
+        body.innerHTML = pages.map((url, i) => `
+          <img src="${url}" alt="Page ${i+1}" loading="${i < 3 ? 'eager' : 'lazy'}"
+            style="max-width:800px;width:100%;display:block;"
+            onerror="this.style.display='none'" />`).join('');
+      } catch (err) {
+        body.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:12px;padding:60px 20px;text-align:center;letter-spacing:2px;">
+          <i class="fas fa-exclamation-triangle" style="font-size:36px;color:var(--rust);display:block;margin-bottom:16px"></i>
+          FAILED TO LOAD PAGES<br><br>
+          <span style="font-size:10px">This chapter may not be available via MangaDex.</span>
+        </div>`;
+      }
     }
 
     document.getElementById('backFromReader').addEventListener('click', () => {
@@ -1729,15 +1813,18 @@
     });
 
     document.getElementById('prevChapterBtn').addEventListener('click', () => {
-      if (currentChapter > 1) openReader(currentManga, currentChapter - 1);
+      if (currentChapterIdx > 0) openReader(currentManga, currentChapterIdx - 1);
+      else showToast('Already on first chapter', 'warning');
     });
     document.getElementById('nextChapterBtn').addEventListener('click', () => {
-      const max = currentManga?.chapters || 999;
-      if (currentChapter < max) openReader(currentManga, currentChapter + 1);
+      if (currentChapterIdx < currentChapterList.length - 1) openReader(currentManga, currentChapterIdx + 1);
+      else showToast('No more chapters', 'warning');
     });
 
     document.getElementById('downloadCurrentBtn').addEventListener('click', () => {
-      document.getElementById('downloadChapterInfo').textContent = `${currentManga?.title?.english || ''} — Chapter ${currentChapter}`;
+      const chap = currentChapterList[currentChapterIdx];
+      document.getElementById('downloadChapterInfo').textContent =
+        `${currentManga?.title?.english || currentManga?.title?.romaji || ''} — Chapter ${chap?.chapter || '?'}`;
       document.getElementById('downloadOptionsModal').classList.add('open');
     });
 
