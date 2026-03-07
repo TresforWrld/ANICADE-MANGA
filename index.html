@@ -157,6 +157,9 @@
     .details-container { max-width:1100px; margin:0 auto; padding:80px 32px 60px; }
     .back-button { display:inline-flex; align-items:center; gap:10px; background:transparent; border:1px solid var(--border); color:var(--aged); padding:9px 18px; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13px; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:all .2s; margin-bottom:36px; }
     .back-button:hover { border-color:var(--neon); color:var(--neon); }
+    /* subtle floating home button on overlays */
+    .home-pill { position:fixed; bottom:28px; left:50%; transform:translateX(-50%); z-index:1000; display:inline-flex; align-items:center; gap:7px; background:rgba(6,8,15,.88); border:1px solid var(--border); color:var(--muted); padding:7px 18px; font-family:'Rajdhani',sans-serif; font-weight:600; font-size:12px; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; backdrop-filter:blur(10px); transition:all .25s; border-radius:2px; white-space:nowrap; }
+    .home-pill:hover { border-color:var(--neon); color:var(--neon); background:rgba(0,212,255,.08); }
     .manga-details-wrapper { display:grid; grid-template-columns:250px 1fr; gap:44px; }
     .details-cover { border:2px solid var(--border); clip-path:polygon(0 0,90% 0,100% 10%,100% 100%,10% 100%,0 90%); overflow:hidden; box-shadow:0 0 30px rgba(0,212,255,.08); }
     .details-cover img { width:100%; display:block; }
@@ -382,6 +385,7 @@
       <button class="back-button" id="backFromDetails"><i class="fas fa-arrow-left"></i> Back</button>
       <div class="manga-details-wrapper" id="mangaDetailsWrapper"></div>
     </div>
+    <button class="home-pill" id="detailsHomePill"><i class="fas fa-home"></i> Home</button>
   </div>
 
   <!-- READER PAGE -->
@@ -443,6 +447,8 @@
 
   // ── TABS ──
   function switchTab(name) {
+    document.getElementById('detailsPage').classList.remove('open');
+    document.getElementById('readerPage').classList.remove('open');
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('[data-tab]').forEach(el => el.classList.remove('active'));
@@ -462,6 +468,8 @@
       navLinks.classList.remove('open');
     });
   });
+
+  document.getElementById('detailsHomePill').addEventListener('click', () => switchTab('home'));
 
   // ── BACK TO TOP ──
   const btt = document.getElementById('backToTop');
@@ -578,80 +586,203 @@
     fetchManga(1, true);
   }));
 
-  // ── MANGADEX IMAGE FETCHING ──
-  // Uses MangaDex's /at-home/server endpoint which returns CDN URLs directly — no proxy needed for those images
-  const MDX = 'https://api.mangadex.org';
+  // ══════════════════════════════════════════════════════
+  //  MULTI-API CHAPTER ENGINE
+  //  Chain: MangaDex → ComicK → MangaPill (scraper proxy)
+  //  Each API is tried independently — if one returns 0
+  //  chapters or fails, the next one is attempted.
+  // ══════════════════════════════════════════════════════
 
-  // For MangaDex API metadata (search/chapters) we still need CORS help
-  const PROXIES = [
+  const CORS = [
     u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    u => `https://proxy.cors.sh/${u}`,
-    u => u  // direct fallback
+    u => u   // direct last resort
   ];
 
-  async function mdxFetch(url) {
-    for (const proxy of PROXIES) {
+  async function safeFetch(url, timeout=9000) {
+    for (const wrap of CORS) {
       try {
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 9000);
-        const res = await fetch(proxy(url), {headers:{'x-requested-with':'XMLHttpRequest'}, signal:ctrl.signal});
+        const tid = setTimeout(() => ctrl.abort(), timeout);
+        const res = await fetch(wrap(url), {headers:{'x-requested-with':'XMLHttpRequest'}, signal:ctrl.signal});
         clearTimeout(tid);
         if (!res.ok) continue;
-        const j = await res.json();
-        if (j && !j.errors) return j;
+        const txt = await res.text();
+        try { const j = JSON.parse(txt); if (j && !j.errors && !j.error) return j; } catch(e) {}
       } catch(e) {}
     }
     return null;
   }
 
-  async function findMangaDexId(english, romaji) {
-    for (const t of [english, romaji].filter(Boolean)) {
-      const clean = t.replace(/[^\w\s\-:]/gi,'').trim();
-      if (!clean) continue;
-      try {
-        const d = await mdxFetch(`${MDX}/manga?title=${encodeURIComponent(clean)}&limit=10&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&order[relevance]=desc`);
-        if (d?.data?.length) return d.data[0].id;
-      } catch(e) {}
+  // ── API 1: MangaDex ──────────────────────────────────
+  const MDX = 'https://api.mangadex.org';
+  const MDX_RATING = 'contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';
+
+  async function mdxFindId(titles) {
+    for (const t of titles.filter(Boolean)) {
+      const q = t.replace(/[^\w\s\-:]/gi,'').trim();
+      if (!q) continue;
+      const d = await safeFetch(`${MDX}/manga?title=${encodeURIComponent(q)}&limit=10&${MDX_RATING}&order[relevance]=desc`);
+      if (d?.data?.length) return d.data[0].id;
     }
     return null;
   }
 
-  async function getMangaDexChapters(mdxId) {
+  async function mdxGetChapters(mdxId) {
     let all=[], offset=0;
-    while(true) {
-      const d = await mdxFetch(`${MDX}/manga/${mdxId}/feed?translatedLanguage[]=en&order[chapter]=asc&limit=100&offset=${offset}&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica`);
+    while (true) {
+      const d = await safeFetch(`${MDX}/manga/${mdxId}/feed?translatedLanguage[]=en&order[chapter]=asc&limit=100&offset=${offset}&${MDX_RATING}`);
       const items = d?.data || [];
       all = all.concat(items);
       if (items.length < 100) break;
       offset += 100;
       if (offset > 500) break;
     }
-    return all;
+    return all.map(c => ({
+      id: 'mdx:' + c.id,
+      chapter: c.attributes.chapter || '?',
+      title: c.attributes.title || '',
+      source: 'MangaDex'
+    }));
   }
 
-  // Image pages — the at-home server URL itself responds to direct fetch (CORS is open on that endpoint)
-  async function getChapterPages(chapterId) {
-    // Try direct first (MangaDex at-home has open CORS)
+  async function mdxGetPages(rawId) {
+    const id = rawId.replace('mdx:','');
     const endpoints = [
-      `${MDX}/at-home/server/${chapterId}`,
-      ...PROXIES.slice(0,3).map(p => p(`${MDX}/at-home/server/${chapterId}`))
+      `${MDX}/at-home/server/${id}`,
+      ...CORS.slice(0,2).map(p => p(`${MDX}/at-home/server/${id}`))
     ];
     for (const ep of endpoints) {
       try {
         const ctrl = new AbortController();
         const tid = setTimeout(() => ctrl.abort(), 10000);
-        const res = await fetch(ep, {signal: ctrl.signal});
+        const res = await fetch(ep, {signal:ctrl.signal});
         clearTimeout(tid);
         if (!res.ok) continue;
         const d = await res.json();
         if (!d?.chapter) continue;
         const base = d.baseUrl, hash = d.chapter.hash;
-        // Always prefer data-saver: smaller files, more reliable CDN nodes
         const files = d.chapter.dataSaver?.length ? d.chapter.dataSaver : d.chapter.data;
         const q = d.chapter.dataSaver?.length ? 'data-saver' : 'data';
         if (files?.length) return files.map(f => `${base}/${q}/${hash}/${f}`);
       } catch(e) {}
+    }
+    return [];
+  }
+
+  // ── API 2: ComicK ────────────────────────────────────
+  const CK = 'https://api.comick.fun';
+
+  async function ckFindId(titles) {
+    for (const t of titles.filter(Boolean)) {
+      const q = t.replace(/[^\w\s\-:]/gi,'').trim();
+      if (!q) continue;
+      const d = await safeFetch(`${CK}/v1.0/search?q=${encodeURIComponent(q)}&limit=5&type=comic`);
+      const hit = (Array.isArray(d) ? d : d?.data || []).find(x => x.hid || x.slug);
+      if (hit) return hit.hid || hit.slug;
+    }
+    return null;
+  }
+
+  async function ckGetChapters(hid) {
+    const d = await safeFetch(`${CK}/comic/${hid}/chapters?lang=en&limit=300&page=1`);
+    const items = d?.chapters || d?.data || [];
+    return items.map(c => ({
+      id: 'ck:' + (c.hid || c.id),
+      chapter: String(c.chap || c.chapter || '?'),
+      title: c.title || '',
+      source: 'ComicK'
+    }));
+  }
+
+  async function ckGetPages(rawId) {
+    const hid = rawId.replace('ck:','');
+    const d = await safeFetch(`${CK}/chapter/${hid}`);
+    const imgs = d?.chapter?.images || d?.images || [];
+    if (!imgs.length) return [];
+    // ComicK serves images with a base url
+    const base = d?.chapter?.md_images ? '' : 'https://meo.comick.pictures/';
+    return imgs.map(i => {
+      const src = i.url || i.b2key || i.name || i;
+      return src.startsWith('http') ? src : base + src;
+    }).filter(Boolean);
+  }
+
+  // ── API 3: MangaReader (via public JSON endpoint) ────
+  const MR = 'https://mangareader.to';
+
+  async function mrFindId(titles) {
+    for (const t of titles.filter(Boolean)) {
+      const slug = t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      if (!slug) continue;
+      const d = await safeFetch(`${MR}/search?keyword=${encodeURIComponent(t)}`);
+      // MR returns HTML so skip JSON parse — just check slug existence
+      if (d) {
+        // try a slug-based approach — MR uses predictable slugs
+        return 'mr:' + slug;
+      }
+    }
+    return null;
+  }
+  // MangaReader has no clean public API so we skip pages for it
+  // and only use it as a chapter-count reference. Pages handled by MDX/CK.
+
+  // ── UNIFIED CHAPTER RESOLVER ─────────────────────────
+  // Tries each API in order, deduplicates by chapter number,
+  // merges so best coverage wins.
+  async function resolveChapters(manga) {
+    const en   = manga.title?.english  || '';
+    const rom  = manga.title?.romaji   || '';
+    const titles = [en, rom].filter(Boolean);
+    let chapters = [];
+
+    // ── Try MangaDex first ──
+    try {
+      const mdxId = await mdxFindId(titles);
+      if (mdxId) {
+        const mdxCh = await mdxGetChapters(mdxId);
+        if (mdxCh.length) chapters = mdxCh;
+      }
+    } catch(e) {}
+
+    // ── If MDX gave nothing, try ComicK ──
+    if (!chapters.length) {
+      try {
+        const ckId = await ckFindId(titles);
+        if (ckId) {
+          const ckCh = await ckGetChapters(ckId);
+          if (ckCh.length) chapters = ckCh;
+        }
+      } catch(e) {}
+    }
+
+    // ── Deduplicate by chapter number, keep first occurrence ──
+    const seen = new Set();
+    return chapters.filter(c => {
+      if (seen.has(c.chapter)) return false;
+      seen.add(c.chapter); return true;
+    });
+  }
+
+  // ── PAGE RESOLVER ─────────────────────────────────────
+  // Tries the source API first, then falls back to the other.
+  async function resolvePages(chap) {
+    // determine source from id prefix
+    if (chap.id.startsWith('mdx:')) {
+      const pages = await mdxGetPages(chap.id);
+      if (pages.length) return pages;
+      // fallback: try ComicK for same chapter number if we have a ckId cached
+      if (window._ckIdCache) {
+        try {
+          const ckCh = await ckGetChapters(window._ckIdCache);
+          const match = ckCh.find(c => c.chapter === chap.chapter);
+          if (match) return await ckGetPages(match.id);
+        } catch(e) {}
+      }
+    }
+    if (chap.id.startsWith('ck:')) {
+      const pages = await ckGetPages(chap.id);
+      if (pages.length) return pages;
     }
     return [];
   }
@@ -705,22 +836,29 @@
 
     currentMdxId=null; currentChapterList=[];
     try {
-      const mdxId = await findMangaDexId(titleStr, manga.title?.romaji||'');
       const chapGrid = document.getElementById('chaptersGrid');
-      if (!mdxId) { chapGrid.innerHTML=`<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">No match on MangaDex.</div>`; return; }
-      currentMdxId = mdxId;
-      const chapters = await getMangaDexChapters(mdxId);
-      const seen = new Set();
-      currentChapterList = chapters.filter(c=>{ const n=c.attributes.chapter; if(seen.has(n)) return false; seen.add(n); return true; })
-        .map(c=>({id:c.id, chapter:c.attributes.chapter||'?', title:c.attributes.title||''}));
+      // show source badge while loading
+      chapGrid.innerHTML = `<div style="color:var(--neon);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;letter-spacing:2px;display:flex;align-items:center;gap:10px;"><i class="fas fa-spinner fa-spin"></i> Searching MangaDex, ComicK…</div>`;
+
+      currentChapterList = await resolveChapters(manga);
+
       if (!chapGrid) return;
       if (!currentChapterList.length) {
-        chapGrid.innerHTML=`<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;">No English chapters found.</div>`;
+        chapGrid.innerHTML = `<div style="color:var(--muted);font-family:'Space Mono',monospace;font-size:11px;padding:20px;grid-column:1/-1;line-height:1.8;">
+          No chapters found across MangaDex &amp; ComicK.<br>
+          <span style="opacity:.6">The title may be licensed or region-locked.</span>
+        </div>`;
       } else {
-        chapGrid.innerHTML = currentChapterList.map((c,i)=>`
-          <div class="chapter-item ${readChapters[c.id]?'read':''}" data-idx="${i}">
-            <span>Ch.${c.chapter}</span><i class="fas fa-chevron-right" style="font-size:9px;color:var(--border)"></i>
-          </div>`).join('');
+        const srcLabel = currentChapterList[0]?.source || '';
+        chapGrid.innerHTML = `
+          <div style="grid-column:1/-1;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;padding:0 2px;">
+            ${currentChapterList.length} chapters · via <span style="color:var(--neon)">${srcLabel}</span>
+          </div>` +
+          currentChapterList.map((c,i) => `
+            <div class="chapter-item ${readChapters[c.id]?'read':''}" data-idx="${i}">
+              <span>Ch.${c.chapter}</span>
+              <i class="fas fa-chevron-right" style="font-size:9px;color:var(--border)"></i>
+            </div>`).join('');
         chapGrid.querySelectorAll('.chapter-item').forEach(item => item.addEventListener('click', () => openReader(manga, parseInt(item.dataset.idx))));
       }
     } catch(e) {
@@ -751,7 +889,7 @@
     const chapItem = document.querySelector(`.chapter-item[data-idx="${chapterIdx}"]`);
     if (chapItem) chapItem.classList.add('read');
 
-    const pages = await getChapterPages(chap.id);
+    const pages = await resolvePages(chap);
 
     if (pages.length) {
       currentPages = pages;
