@@ -78,14 +78,6 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 .slider-dots{position:absolute;bottom:22px;left:56px;display:flex;gap:7px;z-index:10}
 .s-dot{width:24px;height:3px;background:rgba(255,255,255,.2);cursor:pointer;border:none;border-radius:1px;padding:0;transition:all .3s}
 .s-dot.active{background:var(--neon);width:44px;box-shadow:0 0 7px var(--neon-glow)}
-/* Mini recommendation strip (right side of hero) */
-.hero-recs{position:absolute;right:28px;top:50%;transform:translateY(-50%);z-index:10;display:flex;flex-direction:column;gap:8px;width:120px}
-.hero-rec-item{cursor:pointer;border:1px solid var(--border);overflow:hidden;border-radius:2px;transition:all .25s;flex-shrink:0}
-.hero-rec-item:hover,.hero-rec-item.active{border-color:var(--neon);box-shadow:0 0 10px rgba(0,212,255,.25)}
-.hero-rec-item img{width:100%;height:72px;object-fit:cover;display:block;opacity:.6;transition:opacity .2s}
-.hero-rec-item:hover img,.hero-rec-item.active img{opacity:1}
-.hero-rec-label{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:1px;color:var(--aged);padding:4px 6px;background:var(--panel);text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
-
 /* ── CONTENT AREA ── */
 .content-area{position:relative;z-index:2;max-width:1400px;margin:0 auto;padding:48px 40px 80px}
 .tab-content-area{max-width:1400px;margin:0 auto;padding:100px 40px 80px}
@@ -295,7 +287,6 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
       <button class="s-arrow" id="nextArrow"><i class="fas fa-chevron-right"></i></button>
     </div>
     <div class="slider-dots" id="sliderDots"></div>
-    <div class="hero-recs" id="heroRecs"></div>
   </div>
 
   <!-- MAIN CONTENT -->
@@ -511,33 +502,49 @@ function mapJikan(m) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  MANGADEX — chapters + pages (search by title)
-//  NOTE: MangaDex /manga endpoint HAS CORS — works directly
-//  MangaDex at-home server also has CORS — pages work fine
+//  PROXY FETCH — all third-party APIs need a proxy in browser
+//  Chain: corsproxy.io → allorigins → direct
+// ═══════════════════════════════════════════════════════════
+const PROXY1 = u => 'https://corsproxy.io/?' + encodeURIComponent(u);
+const PROXY2 = u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u);
+
+async function pFetch(url, timeout=12000) {
+  for (const wrap of [PROXY1, PROXY2, u=>u]) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), timeout);
+      const res = await fetch(wrap(url), {signal: ctrl.signal});
+      clearTimeout(tid);
+      if (!res.ok) continue;
+      return await res.json();
+    } catch(e) {}
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MANGADEX — search via proxy, pages direct (MDX has CORS)
 // ═══════════════════════════════════════════════════════════
 const MDX = 'https://api.mangadex.org';
+const MDX_CR = '&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';
 
 async function mdxFindId(manga) {
-  // Try multiple title variants for best match
   const tries = [
     manga.title,
     manga.titleAlt,
     manga.titleJp,
-    // strip subtitle after colon
     manga.title?.split(':')[0]?.trim(),
     manga.titleAlt?.split(':')[0]?.trim(),
-  ].filter((t,i,a) => t && a.indexOf(t)===i); // unique, non-empty
+    // Also try without common suffixes
+    manga.title?.replace(/\s*(season|part|vol\.?)\s*\d+/gi,'').trim(),
+  ].filter((t,i,a) => t && t.length>1 && a.indexOf(t)===i);
 
   for (const t of tries) {
-    try {
-      const url = MDX + '/manga?title=' + encodeURIComponent(t)
-        + '&limit=10&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica'
-        + '&availableTranslatedLanguage[]=en&order[relevance]=desc';
-      const res = await fetch(url, {signal: AbortSignal.timeout(10000)});
-      if (!res.ok) continue;
-      const d = await res.json();
-      if (d?.data?.length) return d.data[0].id;
-    } catch(e) {}
+    const url = MDX + '/manga?title=' + encodeURIComponent(t)
+      + '&limit=10' + MDX_CR
+      + '&availableTranslatedLanguage[]=en&order[relevance]=desc';
+    const d = await pFetch(url, 14000);
+    if (d?.data?.length) return d.data[0].id;
   }
   return null;
 }
@@ -545,88 +552,71 @@ async function mdxFindId(manga) {
 async function mdxGetChapters(mdxId) {
   let all = [], offset = 0;
   while (true) {
-    try {
-      const url = MDX + '/manga/' + mdxId + '/feed'
-        + '?translatedLanguage[]=en&order[chapter]=asc&limit=100&offset=' + offset
-        + '&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';
-      const res = await fetch(url, {signal: AbortSignal.timeout(12000)});
-      if (!res.ok) break;
-      const d = await res.json();
-      const items = d?.data || [];
-      all = all.concat(items);
-      if (items.length < 100) break;
-      offset += 100; if (offset > 900) break;
-    } catch(e) { break; }
+    const url = MDX + '/manga/' + mdxId + '/feed'
+      + '?translatedLanguage[]=en&order[chapter]=asc&limit=100&offset=' + offset + MDX_CR;
+    const d = await pFetch(url, 14000);
+    const items = d?.data || [];
+    all = all.concat(items);
+    if (items.length < 100) break;
+    offset += 100; if (offset > 900) break;
   }
   const seen = new Set();
   return all
-    .filter(c => { const n = c.attributes?.chapter||'?'; if(seen.has(n))return false; seen.add(n); return true; })
+    .filter(c => { const n=c.attributes?.chapter||'?'; if(seen.has(n))return false; seen.add(n); return true; })
     .map(c => ({id:c.id, chapter:c.attributes?.chapter||'?', title:c.attributes?.title||'', pages:c.attributes?.pages||0}));
 }
 
 async function mdxGetPages(chapterId) {
+  // MangaDex at-home IS CORS-enabled — try direct first, proxy as backup
+  const url = MDX + '/at-home/server/' + chapterId;
+  let d = null;
   try {
-    const res = await fetch(MDX + '/at-home/server/' + chapterId, {signal: AbortSignal.timeout(12000)});
-    if (!res.ok) throw new Error();
-    const d = await res.json();
-    if (!d?.chapter) return [];
-    const base = d.baseUrl, hash = d.chapter.hash;
-    const files = d.chapter.dataSaver?.length ? d.chapter.dataSaver : d.chapter.data;
-    const q = d.chapter.dataSaver?.length ? 'data-saver' : 'data';
-    return (files||[]).map(f => base+'/'+q+'/'+hash+'/'+f);
-  } catch(e) {
-    // corsproxy fallback
-    try {
-      const res = await fetch('https://corsproxy.io/?' + encodeURIComponent(MDX + '/at-home/server/' + chapterId), {signal: AbortSignal.timeout(12000)});
-      if (!res.ok) return [];
-      const d = await res.json();
-      if (!d?.chapter) return [];
-      const base = d.baseUrl, hash = d.chapter.hash;
-      const files = d.chapter.dataSaver?.length ? d.chapter.dataSaver : d.chapter.data;
-      const q = d.chapter.dataSaver?.length ? 'data-saver' : 'data';
-      return (files||[]).map(f => base+'/'+q+'/'+hash+'/'+f);
-    } catch(e2) { return []; }
-  }
+    const res = await fetch(url, {signal: AbortSignal.timeout(12000)});
+    if (res.ok) d = await res.json();
+  } catch(e) {}
+  if (!d) d = await pFetch(url, 14000);
+  if (!d?.chapter) return [];
+  const base = d.baseUrl, hash = d.chapter.hash;
+  // prefer data-saver (faster, smaller)
+  const useDS = d.chapter.dataSaver?.length > 0;
+  const files = useDS ? d.chapter.dataSaver : d.chapter.data;
+  const q = useDS ? 'data-saver' : 'data';
+  return (files||[]).map(f => base+'/'+q+'/'+hash+'/'+f);
 }
 
 // ═══════════════════════════════════════════════════════════
-//  COMICK FALLBACK — chapters + pages
+//  COMICK — chapters + pages via proxy
 // ═══════════════════════════════════════════════════════════
 const CK = 'https://api.comick.fun';
+
 async function ckFindId(manga) {
   const tries = [manga.title, manga.titleAlt].filter(Boolean);
   for (const t of tries) {
-    try {
-      const res = await fetch(CK + '/v1.0/search?q=' + encodeURIComponent(t) + '&limit=5&type=comic', {signal: AbortSignal.timeout(8000)});
-      if (!res.ok) continue;
-      const list = await res.json();
-      const hit = (Array.isArray(list)?list:list?.data||[]).find(x=>x.hid||x.slug);
-      if (hit) return hit.hid || hit.slug;
-    } catch(e) {}
+    const d = await pFetch(CK + '/v1.0/search?q=' + encodeURIComponent(t) + '&limit=5&type=comic', 10000);
+    const list = Array.isArray(d) ? d : (d?.data||[]);
+    const hit = list.find(x => x.hid || x.slug);
+    if (hit) return hit.hid || hit.slug;
   }
   return null;
 }
+
 async function ckGetChapters(hid) {
-  try {
-    const res = await fetch(CK + '/comic/' + hid + '/chapters?lang=en&limit=300&page=1', {signal: AbortSignal.timeout(10000)});
-    if (!res.ok) return [];
-    const d = await res.json();
-    const items = d?.chapters || d?.data || [];
-    const seen = new Set();
-    return items
-      .filter(c => { const n=String(c.chap||'?'); if(seen.has(n))return false; seen.add(n); return true; })
-      .map(c => ({id:'ck:'+( c.hid||c.id), chapter:String(c.chap||c.chapter||'?'), title:c.title||'', pages:0}));
-  } catch(e) { return []; }
+  const d = await pFetch(CK + '/comic/' + hid + '/chapters?lang=en&limit=300&page=1', 12000);
+  const items = d?.chapters || d?.data || [];
+  const seen = new Set();
+  return items
+    .filter(c => { const n=String(c.chap||'?'); if(seen.has(n))return false; seen.add(n); return true; })
+    .map(c => ({id:'ck:'+(c.hid||c.id), chapter:String(c.chap||c.chapter||'?'), title:c.title||'', pages:0}));
 }
+
 async function ckGetPages(rawId) {
   const id = rawId.replace('ck:','');
-  try {
-    const res = await fetch(CK + '/chapter/' + id, {signal: AbortSignal.timeout(10000)});
-    if (!res.ok) return [];
-    const d = await res.json();
-    const imgs = d?.chapter?.md_images || d?.images || [];
-    return imgs.map(i => { const s=i.url||i.b2key||i.name||''; return s.startsWith('http')?s:'https://meo.comick.pictures/'+s; }).filter(Boolean);
-  } catch(e) { return []; }
+  const d = await pFetch(CK + '/chapter/' + id, 12000);
+  const imgs = d?.chapter?.md_images || d?.images || [];
+  return imgs.map(i => {
+    const s = i.url||i.b2key||i.name||'';
+    return s.startsWith('http') ? s : 'https://meo.comick.pictures/'+s;
+  }).filter(Boolean);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -758,7 +748,6 @@ function goToHeroSlide(idx) {
   heroIdx = (idx + slides.length) % slides.length;
   slides[heroIdx].classList.add('active');
   document.querySelectorAll('.s-dot').forEach((d,i)=>d.classList.toggle('active',i===heroIdx));
-  document.querySelectorAll('.hero-rec-item').forEach((r,i)=>r.classList.toggle('active',i===heroIdx));
   clearInterval(heroTimer);
   heroTimer = setInterval(()=>goToHeroSlide(heroIdx+1), HERO_DUR);
 }
@@ -774,7 +763,6 @@ async function initHeroSlider() {
   const slider = document.getElementById('heroSlider');
   const controls = document.getElementById('sliderControls');
   const dotsEl = document.getElementById('sliderDots');
-  const recsEl = document.getElementById('heroRecs');
   if(loader) loader.remove();
   // Build slides
   heroItems.slice(0,7).forEach((m,i) => {
@@ -787,14 +775,6 @@ async function initHeroSlider() {
     d2.className = 's-dot' + (i===0?' active':'');
     d2.addEventListener('click', ()=>goToHeroSlide(i));
     dotsEl.appendChild(d2);
-  });
-  // Rec thumbnails (right side)
-  heroItems.slice(0,7).forEach((m,i) => {
-    const r = document.createElement('div');
-    r.className = 'hero-rec-item' + (i===0?' active':'');
-    r.innerHTML = '<img src="'+m.cover+'" alt="'+m.title+'" loading="lazy"/><div class="hero-rec-label">'+m.title+'</div>';
-    r.addEventListener('click', ()=>goToHeroSlide(i));
-    recsEl.appendChild(r);
   });
   // Arrows
   document.getElementById('prevArrow').addEventListener('click', ()=>goToHeroSlide(heroIdx-1));
@@ -877,6 +857,14 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
   });
 });
 
+// ── READ LINK BUILDER (for fallback) ──
+function _buildReadLink(url, label, icon) {
+  return '<a href="'+url+'" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--panel);border:1px solid var(--border);color:var(--aged);text-decoration:none;font-family:\'Rajdhani\',sans-serif;font-weight:600;font-size:13px;letter-spacing:1px;transition:all .2s" onmouseover="this.style.borderColor=\'var(--neon)\';this.style.color=\'var(--neon)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--aged)\'">'
+    + '<span style="display:flex;align-items:center;gap:10px"><i class="'+icon+'" style="color:var(--neon);font-size:14px"></i> '+label+'</span>'
+    + '<i class="fas fa-external-link-alt" style="font-size:11px;color:var(--neon)"></i>'
+  + '</a>';
+}
+
 // ═══════════════════════════════════════════════════════════
 //  DETAILS PAGE
 // ═══════════════════════════════════════════════════════════
@@ -942,15 +930,20 @@ async function openDetails(manga) {
     currentChapters = chapters;
     if (!cg) return;
     if (!chapters.length) {
-      cg.innerHTML = '<div style="grid-column:1/-1;padding:20px;font-family:\'Space Mono\',monospace;font-size:11px;color:var(--muted);line-height:1.9">' +
-        '<i class="fas fa-book-open" style="color:var(--neon);margin-right:8px"></i>' +
-        'Chapters unavailable for free reading online.<br>' +
-        '<span style="opacity:.7;font-size:10px">This title may be licensed. Try searching on MangaDex.org directly.</span>' +
-        '<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">' +
-          '<a href="https://mangadex.org/search?q='+encodeURIComponent(manga.title)+'" target="_blank" rel="noopener" style="background:rgba(0,212,255,.1);border:1px solid var(--neon);color:var(--neon);padding:8px 14px;font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:2px;text-decoration:none;display:inline-flex;align-items:center;gap:6px"><i class="fas fa-external-link-alt"></i> MangaDex</a>' +
-          '<a href="https://comick.io/search?q='+encodeURIComponent(manga.title)+'" target="_blank" rel="noopener" style="background:rgba(0,212,255,.06);border:1px solid var(--border);color:var(--aged);padding:8px 14px;font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:2px;text-decoration:none;display:inline-flex;align-items:center;gap:6px"><i class="fas fa-external-link-alt"></i> ComicK</a>' +
-        '</div>' +
-      '</div>';
+      // Final fallback — show direct read links that always work
+      cg.innerHTML =
+        '<div style="grid-column:1/-1;padding:16px 4px">' +
+          '<div style="font-family:\'Space Mono\',monospace;font-size:10px;color:var(--neon);letter-spacing:2px;margin-bottom:14px;display:flex;align-items:center;gap:8px"><i class="fas fa-book-open"></i> READ ONLINE</div>' +
+          '<div style="display:flex;flex-direction:column;gap:8px">' +
+            _buildReadLink('https://mangadex.org/search?q='+encodeURIComponent(manga.title),'MangaDex','fab fa-d-and-d') +
+            _buildReadLink('https://comick.io/search?q='+encodeURIComponent(manga.title),'ComicK','fas fa-book') +
+            _buildReadLink('https://mangakakalot.com/search/story/'+encodeURIComponent(manga.title.replace(/\s+/g,'_').toLowerCase()),'MangaKakalot','fas fa-dragon') +
+            _buildReadLink('https://manganato.com/search/story/'+encodeURIComponent(manga.title.replace(/\s+/g,'_').toLowerCase()),'MangaNato','fas fa-scroll') +
+            _buildReadLink('https://www.mangago.me/search/?q='+encodeURIComponent(manga.title),'MangaGo','fas fa-search') +
+            _buildReadLink('https://ww6.mangakakalot.tv/?s='+encodeURIComponent(manga.title),'MangaKakalot TV','fas fa-tv') +
+          '</div>' +
+          '<div style="font-family:\'Space Mono\',monospace;font-size:9px;color:var(--muted);margin-top:14px;letter-spacing:1px;line-height:1.7">Tap any source above to read <strong style="color:var(--paper)">'+manga.title+'</strong> online for free.</div>' +
+        '</div>';
       return;
     }
     let html = '<div style="grid-column:1/-1;font-family:\'Space Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;padding:0 2px">'
@@ -1080,15 +1073,30 @@ document.getElementById('startZipBtn').addEventListener('click', async () => {
     const total=currentPages.length;let loaded=0;
     txt.textContent='0 / '+total+' pages';
     for (let i=0;i<currentPages.length;i++) {
-      const url=currentPages[i];
-      const ext=(url.split('?')[0].split('.').pop()||'jpg').toLowerCase().slice(0,4);
-      const fname='page_'+String(i+1).padStart(3,'0')+'.'+(ext.length>0?ext:'jpg');
-      let blob=null;
-      for (const purl of [url,'https://corsproxy.io/?'+encodeURIComponent(url),'https://api.allorigins.win/raw?url='+encodeURIComponent(url)]) {
-        try{const ctrl=new AbortController();const tid=setTimeout(()=>ctrl.abort(),14000);const r=await fetch(purl,{signal:ctrl.signal});clearTimeout(tid);if(r.ok){blob=await r.blob();break;}}catch(e){}
+      const rawUrl = currentPages[i];
+      const ext = (rawUrl.split('?')[0].split('.').pop()||'jpg').toLowerCase().replace(/[^a-z]/g,'').slice(0,4)||'jpg';
+      const fname = 'page_'+String(i+1).padStart(3,'0')+'.'+ext;
+      let blob = null;
+      // MangaDex CDN blocks blob fetch — always use proxy
+      const proxied = [
+        PROXY1(rawUrl),
+        PROXY2(rawUrl),
+        rawUrl,
+      ];
+      for (const purl of proxied) {
+        try{
+          const ctrl=new AbortController();
+          const tid=setTimeout(()=>ctrl.abort(),16000);
+          const r=await fetch(purl,{signal:ctrl.signal});
+          clearTimeout(tid);
+          if(r.ok){blob=await r.blob();break;}
+        }catch(e){}
       }
-      if(blob)folder.file(fname,blob);
-      loaded++;const pct=Math.round((loaded/total)*100);fill.style.width=pct+'%';txt.textContent=loaded+' / '+total+' ('+pct+'%)';
+      if(blob) folder.file(fname,blob);
+      loaded++;
+      const pct=Math.round((loaded/total)*100);
+      fill.style.width=pct+'%';
+      txt.textContent=loaded+' / '+total+' ('+pct+'%)';
     }
     txt.textContent='Creating ZIP…';fill.style.width='95%';
     const zblob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
