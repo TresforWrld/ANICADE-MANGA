@@ -444,6 +444,12 @@
 
 <script>
 'use strict';
+// ══════════════════════════════════════════════════════════
+//  ANICADE MANGA ENGINE v3
+//  Browse:  Jikan (MyAnimeList) — CORS-free, unlimited pages
+//  Reading: MangaDex at-home CDN — real manga pages
+//  Fallback:ComicK API
+// ══════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════
 //  ANICADE MANGA ENGINE
@@ -509,178 +515,172 @@ document.querySelectorAll('[data-tab]').forEach(el => {
 document.getElementById('detailsHomePill').addEventListener('click', () => switchTab('home'));
 
 // ══════════════════════════════════════════════════════════
-//  CORS PROXY CHAIN
+//  JIKAN API (MyAnimeList) — CORS-free, works in browser
+//  Used for BROWSING manga (covers, titles, genres, etc.)
 // ══════════════════════════════════════════════════════════
-const PROXIES = [
-  u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-  u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-  u => u
-];
+const JIKAN = 'https://api.jikan.moe/v4';
+// Rate-limit safe fetch (Jikan allows 3 req/sec)
+let _jikanQueue = Promise.resolve();
+function jikanFetch(url) {
+  _jikanQueue = _jikanQueue.then(() => new Promise(res => setTimeout(res, 340)));
+  return _jikanQueue.then(() => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null));
+}
 
-async function proxyFetch(url, opts={}, timeout=12000) {
-  for (const wrap of PROXIES) {
+// Jikan genre IDs (MAL genre IDs)
+const JIKAN_GENRES = {
+  'action':1,'adventure':2,'comedy':4,'drama':8,'fantasy':10,
+  'horror':14,'mystery':7,'romance':22,'sci-fi':24,'slice of life':36,
+  'sports':30,'supernatural':37,'thriller':41,'psychological':40,
+  'mecha':18,'historical':13,'magic':16
+};
+
+async function jikanBrowse(page=1, query='', genre='all') {
+  let url;
+  if (query) {
+    url = JIKAN + '/manga?q=' + encodeURIComponent(query) + '&page=' + page + '&limit=24&sfw=true&order_by=popularity&sort=asc';
+  } else if (genre && genre !== 'all' && JIKAN_GENRES[genre.toLowerCase()]) {
+    url = JIKAN + '/manga?genres=' + JIKAN_GENRES[genre.toLowerCase()] + '&page=' + page + '&limit=24&sfw=true&order_by=popularity&sort=asc';
+  } else {
+    url = JIKAN + '/manga?page=' + page + '&limit=24&sfw=true&order_by=popularity&sort=asc';
+  }
+  const data = await jikanFetch(url);
+  if (!data || !data.data) return { items: [], hasNext: false };
+  const items = data.data.map(m => ({
+    id: String(m.mal_id),
+    malId: m.mal_id,
+    source: 'jikan',
+    title: m.title_english || m.title || 'Unknown',
+    titleAlt: m.title || '',
+    cover: m.images?.jpg?.large_image_url || m.images?.jpg?.image_url || 'https://placehold.co/300x400/0d1120/00d4ff?text=No+Cover',
+    genres: (m.genres || []).map(g => g.name),
+    status: m.status || '',
+    chapters: m.chapters ? String(m.chapters) : '',
+    description: (m.synopsis || '').replace(/\[Written.*?\]/gi,'').trim(),
+    year: m.published?.prop?.from?.year || '',
+    rating: m.score ? String(m.score) : null,
+    type: m.type || 'Manga'
+  }));
+  const hasNext = data.pagination?.has_next_page || false;
+  return { items, hasNext };
+}
+
+// ══════════════════════════════════════════════════════════
+//  MANGADEX — for reading real pages
+// ══════════════════════════════════════════════════════════
+const MDX = 'https://api.mangadex.org';
+const MDX_RATING = 'contentRating[]=safe&contentRating[]=suggestive';
+
+async function mdxSearch(titles) {
+  for (const t of titles.filter(Boolean)) {
+    const q = (t || '').replace(/[^\w\s\-:]/gi,'').trim().slice(0,80);
+    if (!q) continue;
     try {
-      const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), timeout);
-      const res = await fetch(wrap(url), { ...opts, signal: ctrl.signal });
-      clearTimeout(tid);
+      const url = MDX + '/manga?title=' + encodeURIComponent(q)
+        + '&limit=5&' + MDX_RATING
+        + '&availableTranslatedLanguage[]=en'
+        + '&order[relevance]=desc';
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) continue;
-      return await res.json();
-    } catch(e) { /* try next */ }
+      const d = await res.json();
+      if (d?.data?.length) return d.data[0].id;
+    } catch(e) {}
   }
   return null;
 }
 
-// ══════════════════════════════════════════════════════════
-//  MANGADEX API
-// ══════════════════════════════════════════════════════════
-const MDX = 'https://api.mangadex.org';
-const RATING = 'contentRating[]=safe&contentRating[]=suggestive';
-
-// Browse popular manga from MangaDex directly
-async function mdxBrowse(offset=0, query='', genre='') {
-  let url = MDX + '/manga?limit=24&offset=' + offset
-    + '&order[followedCount]=desc'
-    + '&availableTranslatedLanguage[]=en'
-    + '&' + RATING
-    + '&includes[]=cover_art';
-  if (query) url += '&title=' + encodeURIComponent(query);
-  if (genre && genre !== 'all') {
-    // MangaDex genre tags (map common names to UUIDs)
-    const TAG_MAP = {
-      'action':       '391b0423-d847-456f-aff0-8b0cfc03066b',
-      'romance':      '423e2eae-a7a2-4a8b-ac03-a8351462d71d',
-      'fantasy':      'cdc58593-87dd-415e-bbc0-2ec27bf404cc',
-      'comedy':       '4d32cc48-9f00-4cca-9b5a-a839f0764984',
-      'adventure':    '87cc87cd-a395-47af-b27a-93258283bbc6',
-      'horror':       'cdad7e68-1419-41dd-bdce-27753074a640',
-      'thriller':     '07251805-a27e-4d59-b488-f0bfbec15168',
-      'supernatural': 'eabc5b4c-6aff-42f3-b657-3e90cbd00b75',
-      'sci-fi':       '256c8bd9-4904-4360-bf4f-508a76d67183',
-      'mystery':      'ee968100-4191-4968-93d3-f68d863pac18',
-      'drama':        'b9af3a63-f058-46de-a9a0-e0c13906197a',
-      'slice of life':'e5301a23-ebd9-49dd-a0cb-2add944c7fe9',
-      'sports':       '69964a64-2f90-4d33-beeb-f3ed2875eb4c',
-      'psychological':'3b60b75c-a2d7-4860-ab56-05f391bb889c',
-      'mecha':        '50880a9d-5440-4732-9afb-8f457127e836',
-      'historical':   '33771934-028e-4cb3-8744-691e866a923e',
-      'magic':        'a1f53773-c69a-4ce5-8cab-fffcd90b1565',
-    };
-    const tid = TAG_MAP[genre.toLowerCase()];
-    if (tid) url += '&includedTags[]=' + tid;
-  }
-  const data = await proxyFetch(url);
-  if (!data || !data.data) return [];
-  return data.data.map(m => {
-    // extract cover filename
-    const coverRel = m.relationships.find(r => r.type === 'cover_art');
-    const coverFile = coverRel?.attributes?.fileName || '';
-    const cover = coverFile
-      ? 'https://uploads.mangadex.org/covers/' + m.id + '/' + coverFile + '.512.jpg'
-      : 'https://placehold.co/300x400/0d1120/00d4ff?text=No+Cover';
-    return {
-      id: m.id,
-      source: 'mdx',
-      title: m.attributes.title?.en || Object.values(m.attributes.title || {})[0] || 'Unknown',
-      cover,
-      genres: (m.attributes.tags || []).filter(t=>t.attributes.group==='genre').map(t=>t.attributes.name?.en||'').filter(Boolean),
-      status: m.attributes.status || '',
-      chapters: m.attributes.lastChapter || '',
-      description: (m.attributes.description?.en || '').replace(/<[^>]+>/g,''),
-      year: m.attributes.year || '',
-      rating: null
-    };
-  });
-}
-
-// Get chapter list for a manga
-async function mdxGetChapters(mangaId) {
+async function mdxGetChapters(mdxId) {
   let all = [], offset = 0;
   while (true) {
-    const url = MDX + '/manga/' + mangaId + '/feed'
-      + '?translatedLanguage[]=en'
-      + '&order[chapter]=asc'
-      + '&limit=100&offset=' + offset
-      + '&' + RATING;
-    const data = await proxyFetch(url);
-    const items = data?.data || [];
-    all = all.concat(items);
-    if (items.length < 100) break;
-    offset += 100;
-    if (offset > 600) break;
+    try {
+      const url = MDX + '/manga/' + mdxId + '/feed'
+        + '?translatedLanguage[]=en&order[chapter]=asc'
+        + '&limit=100&offset=' + offset + '&' + MDX_RATING;
+      const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+      if (!res.ok) break;
+      const d = await res.json();
+      const items = d?.data || [];
+      all = all.concat(items);
+      if (items.length < 100) break;
+      offset += 100;
+      if (offset > 800) break;
+    } catch(e) { break; }
   }
-  // deduplicate by chapter number
   const seen = new Set();
   return all.filter(c => {
-    const num = c.attributes.chapter || '?';
+    const num = c.attributes?.chapter || '?';
     if (seen.has(num)) return false;
     seen.add(num); return true;
   }).map(c => ({
     id: c.id,
-    chapter: c.attributes.chapter || '?',
-    title: c.attributes.title || '',
-    pages: c.attributes.pages || 0,
+    chapter: c.attributes?.chapter || '?',
+    title: c.attributes?.title || '',
+    pages: c.attributes?.pages || 0,
     source: 'MangaDex'
   }));
 }
 
-// Get page images for a chapter from MangaDex at-home
 async function mdxGetPages(chapterId) {
-  // Try direct first, then proxies
-  const atHomeUrl = MDX + '/at-home/server/' + chapterId;
-  let data = null;
-  // Direct fetch first (MangaDex allows CORS on this endpoint)
   try {
-    const res = await fetch(atHomeUrl, { signal: AbortSignal.timeout(10000) });
-    if (res.ok) data = await res.json();
-  } catch(e) {}
-  // Proxy fallback
-  if (!data) data = await proxyFetch(atHomeUrl);
-  if (!data || !data.chapter) return [];
-  const base = data.baseUrl;
-  const hash = data.chapter.hash;
-  // prefer data-saver (smaller, faster)
-  const files = data.chapter.dataSaver?.length ? data.chapter.dataSaver : data.chapter.data;
-  const quality = data.chapter.dataSaver?.length ? 'data-saver' : 'data';
-  return (files || []).map(f => base + '/' + quality + '/' + hash + '/' + f);
+    const res = await fetch(MDX + '/at-home/server/' + chapterId, { signal: AbortSignal.timeout(12000) });
+    if (!res.ok) throw new Error('not ok');
+    const d = await res.json();
+    if (!d?.chapter) return [];
+    const base = d.baseUrl, hash = d.chapter.hash;
+    const files = d.chapter.dataSaver?.length ? d.chapter.dataSaver : d.chapter.data;
+    const q = d.chapter.dataSaver?.length ? 'data-saver' : 'data';
+    return (files || []).map(f => base + '/' + q + '/' + hash + '/' + f);
+  } catch(e) {
+    // proxy fallback
+    try {
+      const purl = 'https://corsproxy.io/?' + encodeURIComponent(MDX + '/at-home/server/' + chapterId);
+      const res = await fetch(purl, { signal: AbortSignal.timeout(12000) });
+      if (!res.ok) return [];
+      const d = await res.json();
+      if (!d?.chapter) return [];
+      const base = d.baseUrl, hash = d.chapter.hash;
+      const files = d.chapter.dataSaver?.length ? d.chapter.dataSaver : d.chapter.data;
+      const q = d.chapter.dataSaver?.length ? 'data-saver' : 'data';
+      return (files || []).map(f => base + '/' + q + '/' + hash + '/' + f);
+    } catch(e2) { return []; }
+  }
 }
 
 // ══════════════════════════════════════════════════════════
-//  COMICK FALLBACK
+//  COMICK FALLBACK for chapters + pages
 // ══════════════════════════════════════════════════════════
 const CK = 'https://api.comick.fun';
-
-async function ckSearch(title) {
-  const data = await proxyFetch(CK + '/v1.0/search?q=' + encodeURIComponent(title) + '&limit=5&type=comic');
-  const list = Array.isArray(data) ? data : (data?.data || []);
-  return list[0]?.hid || list[0]?.slug || null;
+async function ckFindId(titles) {
+  for (const t of titles.filter(Boolean)) {
+    try {
+      const res = await fetch(CK + '/v1.0/search?q=' + encodeURIComponent(t) + '&limit=5&type=comic', { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const list = await res.json();
+      const hit = (Array.isArray(list) ? list : list?.data || []).find(x => x.hid || x.slug);
+      if (hit) return hit.hid || hit.slug;
+    } catch(e) {}
+  }
+  return null;
 }
-
 async function ckGetChapters(hid) {
-  const data = await proxyFetch(CK + '/comic/' + hid + '/chapters?lang=en&limit=300&page=1');
-  const items = data?.chapters || data?.data || [];
-  const seen = new Set();
-  return items.filter(c => {
-    const num = String(c.chap || c.chapter || '?');
-    if (seen.has(num)) return false;
-    seen.add(num); return true;
-  }).map(c => ({
-    id: 'ck:' + (c.hid || c.id),
-    chapter: String(c.chap || c.chapter || '?'),
-    title: c.title || '',
-    pages: 0,
-    source: 'ComicK'
-  }));
+  try {
+    const res = await fetch(CK + '/comic/' + hid + '/chapters?lang=en&limit=300&page=1', { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return [];
+    const d = await res.json();
+    const items = d?.chapters || d?.data || [];
+    const seen = new Set();
+    return items.filter(c => { const n = String(c.chap||'?'); if(seen.has(n))return false; seen.add(n); return true; })
+      .map(c => ({ id:'ck:' + (c.hid||c.id), chapter:String(c.chap||c.chapter||'?'), title:c.title||'', pages:0, source:'ComicK' }));
+  } catch(e) { return []; }
 }
-
-async function ckGetPages(hid) {
-  const id = hid.replace('ck:', '');
-  const data = await proxyFetch(CK + '/chapter/' + id);
-  const imgs = data?.chapter?.md_images || data?.images || [];
-  return imgs.map(i => {
-    const src = i.url || i.b2key || i.name || '';
-    return src.startsWith('http') ? src : 'https://meo.comick.pictures/' + src;
-  }).filter(Boolean);
+async function ckGetPages(rawId) {
+  const id = rawId.replace('ck:','');
+  try {
+    const res = await fetch(CK + '/chapter/' + id, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return [];
+    const d = await res.json();
+    const imgs = d?.chapter?.md_images || d?.images || [];
+    return imgs.map(i => { const s = i.url||i.b2key||i.name||''; return s.startsWith('http')?s:'https://meo.comick.pictures/'+s; }).filter(Boolean);
+  } catch(e) { return []; }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -691,16 +691,15 @@ let currentManga = null;
 let currentChapters = [];
 let currentChapterIdx = 0;
 let currentPages = [];
-let currentSrc = 'mdx'; // 'mdx' | 'ck'
+let mdxIdCache = null;
 let ckHidCache = null;
 
-let browseOffset = 0;
+let browsePage = 1;
 let browseLoading = false;
 let browseDone = false;
 let browseQuery = '';
 let browseGenre = 'all';
 
-// ── BOOKMARKS / DOWNLOADS (localStorage) ──
 let bookmarks = JSON.parse(localStorage.getItem('am_bm') || '[]');
 let downloads = JSON.parse(localStorage.getItem('am_dl') || '[]');
 function saveBM() { localStorage.setItem('am_bm', JSON.stringify(bookmarks)); }
@@ -708,28 +707,25 @@ function saveDL() { localStorage.setItem('am_dl', JSON.stringify(downloads)); }
 
 function toggleBookmark(manga) {
   const idx = bookmarks.findIndex(b => b.id === manga.id);
-  if (idx >= 0) { bookmarks.splice(idx, 1); showToast('Bookmark removed', 'warning'); }
-  else { bookmarks.push(manga); showToast('Bookmarked!', 'success'); }
+  if (idx >= 0) { bookmarks.splice(idx,1); showToast('Bookmark removed','warning'); }
+  else { bookmarks.push(manga); showToast('Bookmarked!','success'); }
   saveBM();
 }
 
 function renderBookmarks() {
   const grid = document.getElementById('bookmarksGrid');
   const empty = document.getElementById('bookmarksEmpty');
-  if (!bookmarks.length) { grid.innerHTML = ''; empty.style.display = 'flex'; return; }
-  empty.style.display = 'none';
-  grid.innerHTML = '';
-  bookmarks.forEach(m => { const el = buildCard(m); grid.appendChild(el); });
+  if (!bookmarks.length) { grid.innerHTML=''; empty.style.display='flex'; return; }
+  empty.style.display='none'; grid.innerHTML='';
+  bookmarks.forEach(m => grid.appendChild(buildCard(m)));
   attachCardEvents(grid);
 }
-
 function renderDownloads() {
   const grid = document.getElementById('downloadsGrid');
   const empty = document.getElementById('downloadsEmpty');
-  if (!downloads.length) { grid.innerHTML = ''; empty.style.display = 'flex'; return; }
-  empty.style.display = 'none';
-  grid.innerHTML = '';
-  downloads.forEach(m => { const el = buildCard(m); grid.appendChild(el); });
+  if (!downloads.length) { grid.innerHTML=''; empty.style.display='flex'; return; }
+  empty.style.display='none'; grid.innerHTML='';
+  downloads.forEach(m => grid.appendChild(buildCard(m)));
   attachCardEvents(grid);
 }
 
@@ -741,22 +737,22 @@ function buildCard(manga) {
   const el = document.createElement('div');
   el.className = 'manga-card';
   el.dataset.id = manga.id;
-  const genre = (manga.genres || [])[0] || 'Manga';
-  const chaps = manga.chapters ? manga.chapters + ' ch' : 'Ongoing';
+  const genre = (manga.genres||[])[0] || manga.type || 'Manga';
+  const chaps = manga.chapters ? manga.chapters+' ch' : 'Ongoing';
   const score = manga.rating ? parseFloat(manga.rating).toFixed(1) : null;
   el.innerHTML =
     '<div class="card-frame">' +
       '<img class="card-cover" src="' + manga.cover + '" alt="' + manga.title + '" loading="lazy" ' +
         'onerror="this.src=\'https://placehold.co/300x400/0d1120/00d4ff?text=No+Cover\'" />' +
-      (score ? '<div class="card-rating"><i class="fas fa-star"></i> ' + score + '</div>' : '') +
-      (manga.status ? '<div class="card-badge">' + manga.status.toUpperCase() + '</div>' : '') +
+      (score ? '<div class="card-rating"><i class="fas fa-star"></i> '+score+'</div>' : '') +
+      (manga.type ? '<div class="card-badge">'+manga.type+'</div>' : '') +
       '<div class="card-overlay">' +
         '<div class="card-title">' + manga.title + '</div>' +
         '<div class="card-meta"><span class="genre-tag">' + genre + '</span><span>·</span><span>' + chaps + '</span></div>' +
         '<div class="card-actions">' +
           '<button class="card-btn read-btn">Read</button>' +
           '<button class="card-btn secondary bm-btn" title="Bookmark">' +
-            '<i class="fas fa-bookmark" style="color:' + (isBm ? 'var(--neon)' : 'inherit') + '"></i>' +
+            '<i class="fas fa-bookmark" style="color:' + (isBm?'var(--neon)':'inherit') + '"></i>' +
           '</button>' +
         '</div>' +
       '</div>' +
@@ -766,82 +762,70 @@ function buildCard(manga) {
 
 function attachCardEvents(container) {
   container.querySelectorAll('.manga-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const m = mangaCache.find(x => x.id === card.dataset.id)
-             || bookmarks.find(x => x.id === card.dataset.id)
-             || downloads.find(x => x.id === card.dataset.id);
-      if (m) openDetails(m);
-    });
-    card.querySelector('.read-btn')?.addEventListener('click', e => {
-      e.stopPropagation();
-      const m = mangaCache.find(x => x.id === card.dataset.id) || bookmarks.find(x => x.id === card.dataset.id);
-      if (m) openDetails(m);
-    });
+    const getM = () => mangaCache.find(x=>x.id===card.dataset.id)
+                    || bookmarks.find(x=>x.id===card.dataset.id)
+                    || downloads.find(x=>x.id===card.dataset.id);
+    card.addEventListener('click', () => { const m=getM(); if(m) openDetails(m); });
+    card.querySelector('.read-btn')?.addEventListener('click', e => { e.stopPropagation(); const m=getM(); if(m) openDetails(m); });
     card.querySelector('.bm-btn')?.addEventListener('click', e => {
       e.stopPropagation();
-      const m = mangaCache.find(x => x.id === card.dataset.id) || bookmarks.find(x => x.id === card.dataset.id) || downloads.find(x => x.id === card.dataset.id);
-      if (m) { toggleBookmark(m); card.querySelector('.bm-btn i').style.color = bookmarks.some(b=>b.id===m.id)?'var(--neon)':'inherit'; }
+      const m = getM(); if(!m) return;
+      toggleBookmark(m);
+      card.querySelector('.bm-btn i').style.color = bookmarks.some(b=>b.id===m.id)?'var(--neon)':'inherit';
     });
   });
 }
 
 // ══════════════════════════════════════════════════════════
-//  BROWSE / INFINITE SCROLL
+//  BROWSE — Jikan infinite scroll
 // ══════════════════════════════════════════════════════════
 async function loadBrowse(reset=false) {
   if (browseLoading) return;
   if (browseDone && !reset) return;
   browseLoading = true;
   document.getElementById('loading').classList.add('show');
-
   if (reset) {
-    browseOffset = 0; browseDone = false;
+    browsePage = 1; browseDone = false;
     document.getElementById('results').innerHTML = '';
     document.getElementById('endResults').classList.remove('show');
+    mangaCache = mangaCache.filter(m => bookmarks.find(b=>b.id===m.id)); // keep bookmarks
   }
-
-  const items = await mdxBrowse(browseOffset, browseQuery, browseGenre);
-  browseOffset += items.length;
-  if (items.length < 24) { browseDone = true; document.getElementById('endResults').classList.add('show'); }
-
-  items.forEach(m => {
-    if (!mangaCache.find(x => x.id === m.id)) mangaCache.push(m);
+  const { items, hasNext } = await jikanBrowse(browsePage, browseQuery, browseGenre);
+  browsePage++;
+  if (!hasNext || items.length < 24) { browseDone = true; document.getElementById('endResults').classList.add('show'); }
+  items.forEach((m,i) => {
+    if (!mangaCache.find(x=>x.id===m.id)) mangaCache.push(m);
     const el = buildCard(m);
+    el.style.animationDelay = (i * 0.035) + 's';
     document.getElementById('results').appendChild(el);
   });
   attachCardEvents(document.getElementById('results'));
-
   document.getElementById('loading').classList.remove('show');
   browseLoading = false;
+  // auto-load more if page is short
+  if (!browseDone && document.body.scrollHeight <= window.innerHeight + 200) loadBrowse();
 }
 
-// Infinite scroll
 window.addEventListener('scroll', () => {
-  const tab = document.getElementById('tab-home');
-  if (!tab.classList.contains('active')) return;
-  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 700) loadBrowse();
+  if (!document.getElementById('tab-home').classList.contains('active')) return;
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 800) loadBrowse();
 });
 
-// Search
 document.getElementById('searchBtn').addEventListener('click', () => {
   browseQuery = document.getElementById('searchInput').value.trim();
   browseGenre = 'all';
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   document.querySelector('.filter-btn[data-genre="all"]').classList.add('active');
   loadBrowse(true);
 });
-document.getElementById('searchInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('searchBtn').click();
-});
+document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('searchBtn').click(); });
 
-// Genre filter
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     browseGenre = btn.dataset.genre;
-    browseQuery = '';
-    document.getElementById('searchInput').value = '';
+    browseQuery = ''; document.getElementById('searchInput').value = '';
     loadBrowse(true);
   });
 });
@@ -852,30 +836,33 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 async function openDetails(manga) {
   currentManga = manga;
   currentChapters = [];
+  mdxIdCache = null;
   ckHidCache = null;
 
-  const isBm = bookmarks.some(b => b.id === manga.id);
+  const isBm = bookmarks.some(b=>b.id===manga.id);
   const wrapper = document.getElementById('mangaDetailsWrapper');
   wrapper.innerHTML =
-    '<div><div class="details-cover"><img src="' + manga.cover + '" alt="' + manga.title + '" ' +
+    '<div><div class="details-cover"><img src="'+manga.cover+'" alt="'+manga.title+'" ' +
       'onerror="this.src=\'https://placehold.co/300x400/0d1120/00d4ff?text=No+Cover\'" /></div></div>' +
     '<div class="details-info">' +
-      '<h1 class="details-title">' + manga.title + '</h1>' +
+      '<h1 class="details-title">'+manga.title+'</h1>' +
       '<div class="details-sub-info">' +
-        (manga.year ? '<span class="info-chip"><i class="fas fa-calendar"></i> ' + manga.year + '</span>' : '') +
-        (manga.status ? '<span class="info-chip"><i class="fas fa-circle"></i> ' + manga.status + '</span>' : '') +
-        (manga.chapters ? '<span class="info-chip"><i class="fas fa-layer-group"></i> ' + manga.chapters + ' ch</span>' : '<span class="info-chip"><i class="fas fa-sync"></i> Ongoing</span>') +
+        (manga.rating?'<span class="info-chip"><i class="fas fa-star"></i> '+parseFloat(manga.rating).toFixed(1)+'/10</span>':'') +
+        (manga.year?'<span class="info-chip"><i class="fas fa-calendar"></i> '+manga.year+'</span>':'') +
+        (manga.status?'<span class="info-chip"><i class="fas fa-circle"></i> '+manga.status+'</span>':'') +
+        (manga.chapters?'<span class="info-chip"><i class="fas fa-layer-group"></i> '+manga.chapters+' ch</span>':'<span class="info-chip"><i class="fas fa-sync"></i> Ongoing</span>') +
+        (manga.type?'<span class="info-chip"><i class="fas fa-tag"></i> '+manga.type+'</span>':'') +
       '</div>' +
-      '<div class="details-genres">' + (manga.genres || []).map(g => '<span class="genre-pill">' + g + '</span>').join('') + '</div>' +
-      '<p class="details-synopsis">' + (manga.description || 'No synopsis available.').slice(0, 500) + (manga.description?.length > 500 ? '…' : '') + '</p>' +
+      '<div class="details-genres">'+(manga.genres||[]).map(g=>'<span class="genre-pill">'+g+'</span>').join('')+'</div>' +
+      '<p class="details-synopsis">'+(manga.description||'No synopsis available.').slice(0,500)+(manga.description?.length>500?'…':'')+'</p>' +
       '<div class="details-actions">' +
         '<button class="btn-primary" id="detailsReadBtn"><i class="fas fa-book-reader"></i> Start Reading</button>' +
-        '<button class="btn-outline bm-details-btn"><i class="fas fa-bookmark"></i> ' + (isBm ? 'Bookmarked' : 'Bookmark') + '</button>' +
+        '<button class="btn-outline bm-details-btn"><i class="fas fa-bookmark"></i> '+(isBm?'Bookmarked':'Bookmark')+'</button>' +
       '</div>' +
       '<div class="chapters-title">CHAPTERS</div>' +
       '<div class="chapters-grid" id="chaptersGrid">' +
         '<div style="grid-column:1/-1;padding:20px;font-family:\'Space Mono\',monospace;font-size:11px;color:var(--neon);letter-spacing:2px;display:flex;align-items:center;gap:10px">' +
-          '<div class="loading-spinner" style="width:20px;height:20px;border-width:2px"></div> Fetching chapters…' +
+          '<div class="loading-spinner" style="width:20px;height:20px;border-width:2px"></div> Searching MangaDex…' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -885,42 +872,42 @@ async function openDetails(manga) {
 
   document.getElementById('detailsReadBtn').addEventListener('click', () => {
     if (currentChapters.length) openReader(0);
-    else showToast('Chapters still loading…', 'warning');
+    else showToast('Chapters still loading…','warning');
   });
   wrapper.querySelector('.bm-details-btn').addEventListener('click', () => {
     toggleBookmark(manga);
-    wrapper.querySelector('.bm-details-btn').innerHTML =
-      '<i class="fas fa-bookmark"></i> ' + (bookmarks.some(b=>b.id===manga.id) ? 'Bookmarked' : 'Bookmark');
+    wrapper.querySelector('.bm-details-btn').innerHTML = '<i class="fas fa-bookmark"></i> '+(bookmarks.some(b=>b.id===manga.id)?'Bookmarked':'Bookmark');
   });
 
-  // Load chapters
+  // Resolve chapters: try MangaDex first, then ComicK
+  const chapGrid = document.getElementById('chaptersGrid');
   try {
-    const chapGrid = document.getElementById('chaptersGrid');
-    let chapters = await mdxGetChapters(manga.id);
-
-    // If MangaDex returns nothing, try ComicK
+    const titles = [manga.title, manga.titleAlt].filter(Boolean);
+    // Step 1: find MangaDex ID
+    mdxIdCache = await mdxSearch(titles);
+    let chapters = [];
+    if (mdxIdCache) {
+      chapters = await mdxGetChapters(mdxIdCache);
+    }
+    // Step 2: ComicK fallback
     if (!chapters.length) {
-      showToast('Trying ComicK…', '');
-      ckHidCache = await ckSearch(manga.title);
+      if (chapGrid) chapGrid.querySelector('div').textContent = 'Trying ComicK…';
+      ckHidCache = await ckFindId(titles);
       if (ckHidCache) chapters = await ckGetChapters(ckHidCache);
     }
-
     currentChapters = chapters;
     if (!chapGrid) return;
-
     if (!chapters.length) {
       chapGrid.innerHTML = '<div style="grid-column:1/-1;padding:20px;font-family:\'Space Mono\',monospace;font-size:11px;color:var(--muted);line-height:1.8">' +
-        'No English chapters found.<br><span style="opacity:.6">This title may not be available in English on MangaDex or ComicK.</span>' +
-      '</div>';
+        'No English chapters found on MangaDex or ComicK.<br><span style="opacity:.6">Title may be licensed or region-locked.</span></div>';
       return;
     }
-
     const srcLabel = chapters[0]?.source || 'MangaDex';
-    let html = '<div style="grid-column:1/-1;font-family:\'Space Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;padding:0 2px">' +
-      chapters.length + ' chapters via <span style="color:var(--neon)">' + srcLabel + '</span></div>';
-    chapters.forEach((c, i) => {
-      html += '<div class="chapter-item" data-idx="' + i + '">' +
-        '<span>Ch.' + c.chapter + (c.title ? ' — ' + c.title.slice(0,18) : '') + '</span>' +
+    let html = '<div style="grid-column:1/-1;font-family:\'Space Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:6px;padding:0 2px">'
+      + chapters.length + ' chapters · via <span style="color:var(--neon)">' + srcLabel + '</span></div>';
+    chapters.forEach((c,i) => {
+      html += '<div class="chapter-item" data-idx="'+i+'">' +
+        '<span>Ch.'+c.chapter+(c.title?' — '+c.title.slice(0,18):'')+'</span>' +
         '<i class="fas fa-chevron-right" style="font-size:9px;color:var(--border)"></i>' +
       '</div>';
     });
@@ -929,97 +916,81 @@ async function openDetails(manga) {
       item.addEventListener('click', () => openReader(parseInt(item.dataset.idx)));
     });
   } catch(e) {
-    const cg = document.getElementById('chaptersGrid');
-    if (cg) cg.innerHTML = '<div style="padding:20px;color:var(--muted);font-family:\'Space Mono\',monospace;font-size:11px">Could not load chapters.</div>';
+    if (chapGrid) chapGrid.innerHTML = '<div style="padding:20px;color:var(--muted);font-family:\'Space Mono\',monospace;font-size:11px">Could not load chapters. Try again.</div>';
   }
 }
 
-document.getElementById('backFromDetails').addEventListener('click', () => {
-  document.getElementById('detailsPage').classList.remove('open');
-});
+document.getElementById('backFromDetails').addEventListener('click', () => document.getElementById('detailsPage').classList.remove('open'));
 
 // ══════════════════════════════════════════════════════════
 //  READER
 // ══════════════════════════════════════════════════════════
 const readHistory = JSON.parse(localStorage.getItem('am_read') || '{}');
-function markRead(id) { readHistory[id] = true; localStorage.setItem('am_read', JSON.stringify(readHistory)); }
+function markRead(id) { readHistory[id]=true; localStorage.setItem('am_read', JSON.stringify(readHistory)); }
 
 async function openReader(chapterIdx) {
   currentChapterIdx = chapterIdx;
   const chap = currentChapters[chapterIdx];
   if (!chap) return;
-
-  document.getElementById('readerTitle').textContent = currentManga.title + ' — Ch.' + chap.chapter + (chap.title ? ' · ' + chap.title : '');
-  document.getElementById('chapterIndicator').textContent = 'Ch ' + chap.chapter + ' (' + (chapterIdx+1) + '/' + currentChapters.length + ')';
-
+  document.getElementById('readerTitle').textContent = currentManga.title + ' — Ch.' + chap.chapter + (chap.title?' · '+chap.title:'');
+  document.getElementById('chapterIndicator').textContent = 'Ch '+chap.chapter+' ('+(chapterIdx+1)+'/'+currentChapters.length+')';
   const body = document.getElementById('readerBody');
   body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:80px 20px;color:var(--neon);font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:2px;text-align:center"><div class="loading-spinner" style="border-top-color:var(--neon)"></div>LOADING PAGES…</div>';
-
   document.getElementById('detailsPage').classList.remove('open');
   document.getElementById('readerPage').classList.add('open');
   body.scrollTop = 0;
-  document.getElementById('readerPage').scrollTop = 0;
-
   markRead(chap.id);
+  // Update chapter item read state
+  document.querySelectorAll('.chapter-item').forEach(el => {
+    if (parseInt(el.dataset.idx) === chapterIdx) el.classList.add('read');
+  });
 
-  // Determine source and fetch pages
   let pages = [];
-  if (chap.source === 'MangaDex' || !chap.id.startsWith('ck:')) {
+  const isCK = chap.id.startsWith('ck:');
+
+  if (!isCK) {
     pages = await mdxGetPages(chap.id);
-    // Show server toggle
     document.getElementById('srcSelector').style.display = 'flex';
-    document.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b.dataset.src === 'mdx'));
+    document.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b.dataset.src==='mdx'));
+    // fallback to CK if MDX pages empty
+    if (!pages.length) {
+      showToast('MangaDex slow — trying ComicK…','warning');
+      let hid = ckHidCache;
+      if (!hid) hid = await ckFindId([currentManga.title, currentManga.titleAlt].filter(Boolean));
+      if (hid) {
+        ckHidCache = hid;
+        const ckChs = await ckGetChapters(hid);
+        const match = ckChs.find(c=>c.chapter===chap.chapter);
+        if (match) pages = await ckGetPages(match.id);
+      }
+    }
   } else {
     pages = await ckGetPages(chap.id);
     document.getElementById('srcSelector').style.display = 'flex';
-    document.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b.dataset.src === 'ck'));
+    document.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b.dataset.src==='ck'));
   }
 
   currentPages = pages;
-  currentSrc = chap.source === 'MangaDex' ? 'mdx' : 'ck';
-
-  if (pages.length) {
-    renderPages(pages, body);
-  } else {
-    // Try ComicK fallback if MangaDex pages failed
-    if (chap.source === 'MangaDex') {
-      showToast('MangaDex slow — trying ComicK…', 'warning');
-      let ckHid = ckHidCache;
-      if (!ckHid) ckHid = await ckSearch(currentManga.title);
-      if (ckHid) {
-        ckHidCache = ckHid;
-        const ckChaps = await ckGetChapters(ckHid);
-        const match = ckChaps.find(c => c.chapter === chap.chapter);
-        if (match) {
-          pages = await ckGetPages(match.id);
-          currentPages = pages;
-        }
-      }
-    }
-    if (pages.length) {
-      renderPages(pages, body);
-    } else {
-      body.innerHTML = buildPageError();
-    }
-  }
+  if (pages.length) renderPages(pages, body);
+  else body.innerHTML = buildPageError();
 }
 
 function renderPages(pages, body) {
   body.innerHTML = '';
-  pages.forEach((url, i) => {
+  pages.forEach((url,i) => {
     const img = document.createElement('img');
-    img.src = url;
-    img.alt = 'Page ' + (i+1);
+    img.alt = 'Page '+(i+1);
     img.loading = i < 3 ? 'eager' : 'lazy';
     img.style.cssText = 'max-width:800px;width:100%;display:block;';
     img.onerror = function() {
-      // Try proxying the image on error
-      if (!this.src.includes('corsproxy')) {
+      if (!this.dataset.tried) {
+        this.dataset.tried = '1';
         this.src = 'https://corsproxy.io/?' + encodeURIComponent(url);
       } else {
-        this.src = 'https://placehold.co/800x200/06080f/1e2d4a?text=Page+' + (i+1) + '+unavailable';
+        this.src = 'https://placehold.co/800x180/06080f/1e2d4a?text=Page+'+(i+1)+'+unavailable';
       }
     };
+    img.src = url;
     body.appendChild(img);
   });
 }
@@ -1028,79 +999,66 @@ function buildPageError() {
   return '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:80px 20px;text-align:center;max-width:440px;margin:0 auto">' +
     '<i class="fas fa-exclamation-circle" style="font-size:48px;color:var(--neon);opacity:.35"></i>' +
     '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;letter-spacing:3px;color:var(--paper)">Pages Could Not Load</div>' +
-    '<div style="font-family:\'Space Mono\',monospace;font-size:10px;color:var(--muted);line-height:1.8;letter-spacing:1px">MangaDex CDN may be rate-limiting.<br>Try another server or wait a moment.</div>' +
+    '<div style="font-family:\'Space Mono\',monospace;font-size:10px;color:var(--muted);line-height:1.8;letter-spacing:1px">' +
+      'MangaDex may be rate-limiting your IP.<br>Switch to ComicK server or retry.</div>' +
     '<div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;justify-content:center">' +
       '<button onclick="openReader(currentChapterIdx)" style="background:rgba(0,212,255,.15);border:1px solid var(--neon);color:var(--neon);padding:10px 22px;font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer"><i class="fas fa-redo"></i> Retry</button>' +
-      '<button onclick="if(currentChapterIdx<currentChapters.length-1)openReader(currentChapterIdx+1)" style="background:rgba(0,212,255,.08);border:1px solid var(--border);color:var(--aged);padding:10px 22px;font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer">Next Ch <i class="fas fa-chevron-right"></i></button>' +
+      '<button onclick="document.querySelector(\'.src-btn[data-src=ck]\').click()" style="background:rgba(0,212,255,.08);border:1px solid var(--border);color:var(--aged);padding:10px 22px;font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer">Try ComicK</button>' +
     '</div>' +
   '</div>';
 }
 
-// Source toggle buttons (server switch)
+// Server switcher
 document.querySelectorAll('.src-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
-    document.querySelectorAll('.src-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.src-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    currentSrc = btn.dataset.src;
     const chap = currentChapters[currentChapterIdx];
     if (!chap) return;
     const body = document.getElementById('readerBody');
-    body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:80px 20px;color:var(--neon);font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:2px;text-align:center"><div class="loading-spinner" style="border-top-color:var(--neon)"></div>SWITCHING SERVER…</div>';
+    body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:80px;color:var(--neon);font-family:\'Space Mono\',monospace;font-size:11px;letter-spacing:2px"><div class="loading-spinner" style="border-top-color:var(--neon)"></div>SWITCHING…</div>';
     let pages = [];
-    if (currentSrc === 'ck') {
-      let ckHid = ckHidCache;
-      if (!ckHid) ckHid = await ckSearch(currentManga.title);
-      if (ckHid) {
-        ckHidCache = ckHid;
-        const ckChaps = await ckGetChapters(ckHid);
-        const match = ckChaps.find(c => c.chapter === chap.chapter);
-        if (match) pages = await ckGetPages(match.id);
-      }
+    if (btn.dataset.src === 'ck') {
+      let hid = ckHidCache;
+      if (!hid) hid = await ckFindId([currentManga.title, currentManga.titleAlt].filter(Boolean));
+      if (hid) { ckHidCache = hid; const chs = await ckGetChapters(hid); const match = chs.find(c=>c.chapter===chap.chapter); if(match) pages = await ckGetPages(match.id); }
     } else {
-      pages = await mdxGetPages(chap.id);
+      if (mdxIdCache) pages = await mdxGetPages(chap.id);
     }
     currentPages = pages;
-    if (pages.length) renderPages(pages, body);
-    else body.innerHTML = buildPageError();
+    if (pages.length) renderPages(pages, body); else body.innerHTML = buildPageError();
   });
 });
 
-// Chapter nav buttons
 document.getElementById('prevChapterBtn').addEventListener('click', () => {
-  if (currentChapterIdx > 0) openReader(currentChapterIdx - 1);
-  else showToast('This is the first chapter', 'warning');
+  if (currentChapterIdx > 0) openReader(currentChapterIdx-1);
+  else showToast('First chapter','warning');
 });
 document.getElementById('nextChapterBtn').addEventListener('click', () => {
-  if (currentChapterIdx < currentChapters.length - 1) openReader(currentChapterIdx + 1);
-  else showToast('No more chapters available', 'warning');
+  if (currentChapterIdx < currentChapters.length-1) openReader(currentChapterIdx+1);
+  else showToast('No more chapters','warning');
 });
-
 document.getElementById('backFromReader').addEventListener('click', () => {
   document.getElementById('readerPage').classList.remove('open');
   if (currentManga) document.getElementById('detailsPage').classList.add('open');
 });
 
 // ══════════════════════════════════════════════════════════
-//  DOWNLOAD
-//  Uses JSZip (loaded dynamically) to zip all pages as a
-//  real downloadable .zip file, with per-image CORS proxy.
+//  DOWNLOAD — real ZIP with JSZip
 // ══════════════════════════════════════════════════════════
 document.getElementById('downloadCurrentBtn').addEventListener('click', () => {
-  if (!currentPages.length) { showToast('No pages loaded yet', 'warning'); return; }
+  if (!currentPages.length) { showToast('No pages loaded yet','warning'); return; }
   const chap = currentChapters[currentChapterIdx];
-  const chapLabel = 'Chapter ' + (chap?.chapter || '?') + (chap?.title ? ' — ' + chap.title : '');
   document.getElementById('downloadChapterInfo').innerHTML =
-    '<strong style="color:var(--paper)">' + currentManga.title + '</strong><br>' + chapLabel + '<br>' +
-    '<span style="color:var(--neon)">' + currentPages.length + ' pages</span>';
-
-  // Build individual page links
+    '<strong style="color:var(--paper)">' + currentManga.title + '</strong><br>' +
+    'Chapter ' + (chap?.chapter||'?') + (chap?.title?' — '+chap.title:'') + '<br>' +
+    '<span style="color:var(--neon)">' + currentPages.length + ' pages available</span>';
   const list = document.getElementById('downloadOptionsList');
-  list.innerHTML = '<div style="font-family:\'Space Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px">Individual pages (right-click → Save):</div>' +
-    currentPages.slice(0, 5).map((url, i) =>
-      '<a href="' + url + '" target="_blank" rel="noopener" class="dl-opt-btn"><span>Page ' + (i+1) + '</span><i class="fas fa-external-link-alt"></i></a>'
+  list.innerHTML = '<div style="font-family:\'Space Mono\',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px">Open individual pages:</div>' +
+    currentPages.slice(0,6).map((url,i) =>
+      '<a href="'+url+'" target="_blank" rel="noopener" class="dl-opt-btn"><span>Page '+(i+1)+'</span><i class="fas fa-external-link-alt"></i></a>'
     ).join('') +
-    (currentPages.length > 5 ? '<div style="font-family:\'Space Mono\',monospace;font-size:9px;color:var(--muted);padding:6px 0">+ ' + (currentPages.length-5) + ' more pages in ZIP download below</div>' : '');
-
+    (currentPages.length>6 ? '<div style="font-family:\'Space Mono\',monospace;font-size:9px;color:var(--muted);padding:6px 0">+'+(currentPages.length-6)+' more included in ZIP</div>' : '');
   document.getElementById('downloadProgress').style.display = 'none';
   document.getElementById('progressFill').style.width = '0%';
   document.getElementById('startDownloadBtn').disabled = false;
@@ -1109,27 +1067,20 @@ document.getElementById('downloadCurrentBtn').addEventListener('click', () => {
 });
 
 document.getElementById('closeModal').addEventListener('click', () => document.getElementById('downloadModal').classList.remove('open'));
-document.getElementById('downloadModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('downloadModal')) document.getElementById('downloadModal').classList.remove('open');
-});
+document.getElementById('downloadModal').addEventListener('click', e => { if(e.target===document.getElementById('downloadModal')) document.getElementById('downloadModal').classList.remove('open'); });
 
 document.getElementById('startDownloadBtn').addEventListener('click', async () => {
-  if (!currentPages.length) { showToast('No pages to download', 'error'); return; }
+  if (!currentPages.length) { showToast('No pages to download','error'); return; }
   const btn = document.getElementById('startDownloadBtn');
   const prog = document.getElementById('downloadProgress');
   const fill = document.getElementById('progressFill');
   const txt = document.getElementById('progressText');
-
   btn.disabled = true;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing…';
-  prog.style.display = 'block';
-  fill.style.width = '0%';
-  txt.textContent = 'Loading JSZip…';
-
+  prog.style.display = 'block'; fill.style.width = '0%'; txt.textContent = 'Loading JSZip…';
   try {
-    // Load JSZip dynamically
     if (!window.JSZip) {
-      await new Promise((resolve, reject) => {
+      await new Promise((resolve,reject) => {
         const s = document.createElement('script');
         s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
         s.onload = resolve; s.onerror = reject;
@@ -1138,68 +1089,45 @@ document.getElementById('startDownloadBtn').addEventListener('click', async () =
     }
     const zip = new window.JSZip();
     const chap = currentChapters[currentChapterIdx];
-    const mangaName = (currentManga.title || 'manga').replace(/[^a-z0-9]/gi, '_');
-    const chapNum = chap?.chapter || '0';
+    const mangaName = (currentManga.title||'manga').replace(/[^a-z0-9]/gi,'_');
+    const chapNum = chap?.chapter||'0';
     const folderName = mangaName + '_Ch' + chapNum;
     const folder = zip.folder(folderName);
     const total = currentPages.length;
     let loaded = 0;
-
     txt.textContent = '0 / ' + total + ' pages';
-
-    // Fetch images one by one with proxy fallback
     for (let i = 0; i < currentPages.length; i++) {
       const url = currentPages[i];
-      const ext = url.split('?')[0].split('.').pop().toLowerCase() || 'jpg';
-      const filename = 'page_' + String(i+1).padStart(3, '0') + '.' + ext;
+      const ext = (url.split('?')[0].split('.').pop()||'jpg').toLowerCase().split('/')[0];
+      const filename = 'page_' + String(i+1).padStart(3,'0') + '.' + (ext.length<=4?ext:'jpg');
       let blob = null;
-      // Try proxies in order
-      const proxiedUrls = [
-        url,
-        'https://corsproxy.io/?' + encodeURIComponent(url),
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-      ];
-      for (const purl of proxiedUrls) {
+      for (const purl of [url, 'https://corsproxy.io/?'+encodeURIComponent(url), 'https://api.allorigins.win/raw?url='+encodeURIComponent(url)]) {
         try {
           const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 12000);
-          const res = await fetch(purl, { signal: ctrl.signal });
+          const tid = setTimeout(()=>ctrl.abort(), 14000);
+          const res = await fetch(purl, {signal:ctrl.signal});
           clearTimeout(tid);
           if (res.ok) { blob = await res.blob(); break; }
         } catch(e) {}
       }
       if (blob) folder.file(filename, blob);
       loaded++;
-      const pct = Math.round((loaded / total) * 100);
-      fill.style.width = pct + '%';
-      txt.textContent = loaded + ' / ' + total + ' pages (' + pct + '%)';
+      const pct = Math.round((loaded/total)*100);
+      fill.style.width = pct+'%'; txt.textContent = loaded+' / '+total+' pages ('+pct+'%)';
     }
-
-    txt.textContent = 'Creating ZIP…';
-    fill.style.width = '95%';
-    const zipBlob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:3}});
-    fill.style.width = '100%';
-    txt.textContent = 'Done!';
-
-    // Trigger download
+    txt.textContent = 'Creating ZIP file…'; fill.style.width = '95%';
+    const zipBlob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
+    fill.style.width = '100%'; txt.textContent = 'Done!';
     const a = document.createElement('a');
     a.href = URL.createObjectURL(zipBlob);
     a.download = folderName + '.zip';
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(a.href);
-    document.body.removeChild(a);
-
-    // Save to downloads tab
-    if (!downloads.find(d => d.id === currentManga.id)) {
-      downloads.push(currentManga);
-      saveDL();
-    }
-    showToast('Downloaded ' + total + ' pages!', 'success');
-    setTimeout(() => document.getElementById('downloadModal').classList.remove('open'), 1200);
+    document.body.appendChild(a); a.click();
+    URL.revokeObjectURL(a.href); document.body.removeChild(a);
+    if (!downloads.find(d=>d.id===currentManga.id)) { downloads.push(currentManga); saveDL(); }
+    showToast('Downloaded '+total+' pages!','success');
+    setTimeout(()=>document.getElementById('downloadModal').classList.remove('open'),1400);
   } catch(e) {
-    showToast('Download failed. Try individual pages above.', 'error');
-    fill.style.width = '0%';
+    showToast('ZIP failed — try individual page links above','error');
     txt.textContent = 'Error: ' + e.message;
   }
   btn.disabled = false;
@@ -1208,20 +1136,21 @@ document.getElementById('startDownloadBtn').addEventListener('click', async () =
 
 // ── FEATURED BANNER ──
 document.getElementById('featuredReadBtn').addEventListener('click', () => {
-  // Open One Piece directly
-  const opId = 'd8a959f7-648e-4c8d-8f23-f1f3f8e129f3'; // MangaDex One Piece ID
+  // One Piece via Jikan mal_id 13
   const op = {
-    id: opId, source: 'mdx', title: 'One Piece',
-    cover: 'https://cdn.myanimelist.net/images/manga/2/253146l.jpg',
-    genres: ['Action', 'Fantasy', 'Adventure'],
-    status: 'ongoing', chapters: '', description: "Luffy's pirate adventure begins.",
-    year: 1997, rating: null
+    id:'13', malId:13, source:'jikan',
+    title:'One Piece', titleAlt:'One Piece',
+    cover:'https://cdn.myanimelist.net/images/manga/2/253146l.jpg',
+    genres:['Action','Fantasy','Adventure'],
+    status:'Publishing', chapters:'', description:"Gol D. Roger was known as the Pirate King, the strongest and most infamous being to have sailed the Grand Line. The capture and death of Roger by the World Government brought a change throughout the world. His last words before his death revealed the location of the greatest treasure in the world, One Piece. It was this revelation that brought about the Grand Age of Pirates, men who dreamed of finding One Piece, which promises an unlimited amount of riches and fame, and quite possibly the most coveted of titles for the person who found the treasure, the title of the Pirate King.",
+    year:1997, rating:'9.1', type:'Manga'
   };
-  if (!mangaCache.find(x=>x.id===opId)) mangaCache.push(op);
+  if (!mangaCache.find(x=>x.id==='13')) mangaCache.push(op);
   openDetails(op);
 });
 document.getElementById('featuredBookmarkBtn').addEventListener('click', () => {
-  const op = { id: 'd8a959f7-648e-4c8d-8f23-f1f3f8e129f3', title: 'One Piece', cover: 'https://cdn.myanimelist.net/images/manga/2/253146l.jpg', genres: ['Action','Fantasy'] };
+  const op = { id:'13', title:'One Piece', cover:'https://cdn.myanimelist.net/images/manga/2/253146l.jpg', genres:['Action','Fantasy'], type:'Manga' };
+  if (!mangaCache.find(x=>x.id==='13')) mangaCache.push(op);
   toggleBookmark(op);
 });
 
