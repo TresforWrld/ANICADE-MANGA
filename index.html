@@ -484,7 +484,6 @@ const MDX='https://api.mangadex.org';
 const CR='&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';
 
 async function mdxFind(manga){
-  // Build search title variants — try each until one matches
   const tries=[
     manga.title,
     manga.titleAlt,
@@ -495,20 +494,38 @@ async function mdxFind(manga){
 
   for(const t of tries){
     try{
-      // Direct fetch — works from browser, MDX is CORS-enabled
       const r=await fetch(
         MDX+'/manga?title='+encodeURIComponent(t)+'&limit=10'+CR+'&availableTranslatedLanguage[]=en&order[relevance]=desc',
         {signal:AbortSignal.timeout(14000)}
       );
       if(!r.ok)continue;
       const d=await r.json();
-      if(d?.data?.length)return d.data[0].id;
+      if(!d?.data?.length)continue;
+      // Try each result until we find one with EN chapters
+      for(const entry of d.data){
+        const hasCh=await mdxHasChapters(entry.id);
+        if(hasCh)return entry.id;
+      }
+      // If none had chapters yet, return first result anyway and let mdxChapters handle it
+      return d.data[0].id;
     }catch(e){
-      // If direct fetch fails, MDX may be temporarily down — skip gracefully
-      console.warn('MDX search failed for "'+t+'":', e.message);
+      console.warn('MDX search error for "'+t+'":', e.message);
     }
   }
   return null;
+}
+
+// Quick check: does this MDX manga ID have any EN chapters?
+async function mdxHasChapters(mdxId){
+  try{
+    const r=await fetch(
+      MDX+'/manga/'+mdxId+'/feed?translatedLanguage[]=en&order[chapter]=asc&limit=1'+CR,
+      {signal:AbortSignal.timeout(8000)}
+    );
+    if(!r.ok)return false;
+    const d=await r.json();
+    return (d?.data?.length||0)>0;
+  }catch(e){return false;}
 }
 
 async function mdxChapters(mdxId){
@@ -675,7 +692,8 @@ function goSlide(idx){
 }
 
 async function initHero(){
-  const d=await jFetch(JIKAN+'/top/manga?page=1&limit=8&filter=bypopularity');
+  // Use direct fetch (bypasses jFetch rate-limit queue) so hero loads instantly
+  const d=await fetch(JIKAN+'/top/manga?page=1&limit=8&filter=bypopularity').then(r=>r.ok?r.json():null).catch(()=>null);
   const loader=$('heroLoader');
   if(!d?.data?.length){if(loader)loader.remove();return;}
   hItems=d.data.map(mapJ);
@@ -704,7 +722,8 @@ async function initHero(){
 // ═══════════════════════════════════════════════════════════════
 async function loadCar(elId,url){
   const el=$(elId);if(!el)return;
-  const d=await jFetch(url);
+  // Direct fetch for carousels - separate from browse throttle queue
+  const d=await fetch(url).then(r=>r.ok?r.json():null).catch(()=>null);
   el.innerHTML='';
   if(!d?.data?.length){el.innerHTML='<span style="color:var(--muted);font-size:13px;padding:20px">Nothing to show</span>';return;}
   d.data.map(mapJ).forEach((m,i)=>{
@@ -796,18 +815,45 @@ async function openDetails(manga){
   // ── FIND CHAPTERS ──
   const cg=$('chGrid'),cc=$('ch-count');
   try{
+    cc.textContent='Searching MangaDex…';
     mdxId=await mdxFind(manga);
     let chapters=[];
+
     if(mdxId){
+      cc.textContent='Loading chapters…';
       chapters=await mdxChapters(mdxId);
     }
+
+    // If still nothing, try searching MangaDex with just the first word of title
+    // (handles cases where English title differs significantly from romaji)
+    if(!chapters.length&&manga.title){
+      const shortTitle=manga.title.split(' ').slice(0,2).join(' ');
+      if(shortTitle!==manga.title){
+        cc.textContent='Trying alternate search…';
+        try{
+          const r=await fetch(MDX+'/manga?title='+encodeURIComponent(shortTitle)+'&limit=10'+CR+'&order[relevance]=desc',{signal:AbortSignal.timeout(12000)});
+          if(r.ok){
+            const d=await r.json();
+            for(const entry of (d?.data||[])){
+              const hasCh=await mdxHasChapters(entry.id);
+              if(hasCh){
+                chapters=await mdxChapters(entry.id);
+                if(chapters.length){mdxId=entry.id;break;}
+              }
+            }
+          }
+        }catch(e){}
+      }
+    }
+
     curChapters=chapters;
     if(!chapters.length){
       cc.textContent='0 chapters';
       cg.innerHTML=
-        '<div style="grid-column:1/-1;padding:16px;font-family:\'Space Mono\',monospace;font-size:10px;color:var(--muted);line-height:1.9">'+
-          'No English chapters found on MangaDex for this title.<br>'+
-          '<span style="font-size:9px;opacity:.7">This title may not have scanlations available in English yet.</span>'+
+        '<div style="grid-column:1/-1;padding:16px;font-family:\'Space Mono\',monospace;font-size:10px;color:var(--muted);line-height:2">'+
+          'No English scanlations found on MangaDex for this title.<br>'+
+          '<span style="font-size:9px;opacity:.7">Try a different title or check MangaDex directly.</span>'+
+          '<br><button onclick="window.open(\'https://mangadex.org/search?q='+encodeURIComponent(manga.title)+'\',\'_blank\')" style="margin-top:10px;background:rgba(0,212,255,.1);border:1px solid var(--neon);color:var(--neon);padding:7px 14px;font-family:\'Bebas Neue\',sans-serif;font-size:12px;letter-spacing:2px;cursor:pointer">Search MangaDex.org</button>'+
         '</div>';
       return;
     }
